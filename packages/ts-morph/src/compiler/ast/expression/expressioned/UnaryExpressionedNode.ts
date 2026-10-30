@@ -4,7 +4,7 @@ import { Node } from "../../common";
 import { UnaryExpression } from "../UnaryExpression";
 import { BaseExpressionedNode } from "./ExpressionedNode";
 
-export type UnaryExpressionedNodeExtensionType = Node<ts.Node & { expression: ts.UnaryExpression }>;
+export type UnaryExpressionedNodeExtensionType = Node<ts.Node & { expression: ts.Expression }>;
 
 export interface UnaryExpressionedNode extends BaseExpressionedNode<UnaryExpression> {
 }

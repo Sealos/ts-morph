@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 /**
  * Code Analysis - Output wrapped nodes info.
  * ------------------------------------------
@@ -11,7 +12,7 @@ import { folders, path } from "../deps.ts";
 import { InspectorFactory, TsNode, TsNodeProperty } from "../inspectors/mod.ts";
 
 // setup
-const inspectorFactory = new InspectorFactory();
+using inspectorFactory = new InspectorFactory();
 const tsInspector = inspectorFactory.getTsInspector();
 
 // get info
@@ -32,7 +33,7 @@ let output = "# Wrapped Nodes\n\n"
 outputCoverage("Exist", wrappedTsNodes);
 output += "\n";
 outputCoverage("Not Exist", notWrappedTsNodes);
-Deno.writeTextFileSync(path.join(folders.tsMorph, "wrapped-nodes.md"), output);
+writeFileSync(path.join(folders.tsMorph, "wrapped-nodes.md"), output);
 
 // play a tone to indicate it's done
 console.log("\x07");

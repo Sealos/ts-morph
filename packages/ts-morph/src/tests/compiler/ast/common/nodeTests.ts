@@ -234,7 +234,7 @@ describe("Node", () => {
   describe(nameof<Node>("getParentSyntaxList"), () => {
     it("should return undefined for an end of file token", () => {
       const { sourceFile } = getInfoFromText("class C {}");
-      const endOfFileToken = sourceFile.getFirstChildByKindOrThrow(SyntaxKind.EndOfFileToken);
+      const endOfFileToken = sourceFile.getFirstChildByKindOrThrow(SyntaxKind.EndOfFile);
       expect(endOfFileToken.getParentSyntaxList()).to.be.undefined;
     });
   });
@@ -1252,7 +1252,7 @@ class MyClass {
     });
 
     it("should print the node with different newlines", () => {
-      expect(firstChild.print({ newLineKind: NewLineKind.CarriageReturnLineFeed })).to.equal(nodeText.replace(/\n/g, "\r\n"));
+      expect(firstChild.print({ newLineKind: NewLineKind.CRLF })).to.equal(nodeText.replace(/\n/g, "\r\n"));
     });
   });
 
@@ -1473,7 +1473,7 @@ class MyClass {
 
     it("should iterate over all the children of a source file", () => {
       const { sourceFile } = getInfoFromText("class Test {} interface Interface {}");
-      doNodeCbSyntaxKindTest(sourceFile, [SyntaxKind.ClassDeclaration, SyntaxKind.InterfaceDeclaration, SyntaxKind.EndOfFileToken]);
+      doNodeCbSyntaxKindTest(sourceFile, [SyntaxKind.ClassDeclaration, SyntaxKind.InterfaceDeclaration, SyntaxKind.EndOfFile]);
     });
 
     it("should iterate over all the children when it includes an array", () => {
@@ -1603,7 +1603,7 @@ class MyClass {
         SyntaxKind.Identifier,
         SyntaxKind.InterfaceDeclaration,
         SyntaxKind.Identifier,
-        SyntaxKind.EndOfFileToken,
+        SyntaxKind.EndOfFile,
       ]);
     });
 
@@ -1648,7 +1648,7 @@ class MyClass {
         SyntaxKind.ClassDeclaration,
         SyntaxKind.InterfaceDeclaration,
         SyntaxKind.Identifier,
-        SyntaxKind.EndOfFileToken,
+        SyntaxKind.EndOfFile,
       ], (node, traversal) => {
         if (node.getKind() === SyntaxKind.ClassDeclaration)
           traversal.skip();
@@ -1663,7 +1663,7 @@ class MyClass {
         SyntaxKind.PropertyDeclaration,
         SyntaxKind.InterfaceDeclaration,
         SyntaxKind.Identifier,
-        SyntaxKind.EndOfFileToken,
+        SyntaxKind.EndOfFile,
       ], (node, traversal) => {
         if (node.getKind() === SyntaxKind.PropertyDeclaration)
           traversal.up();
@@ -1714,7 +1714,7 @@ class MyClass {
           SyntaxKind.Block,
           SyntaxKind.Identifier,
           SyntaxKind.Identifier,
-          SyntaxKind.EndOfFileToken,
+          SyntaxKind.EndOfFile,
         ],
         [
           [SyntaxKind.ClassDeclaration, SyntaxKind.InterfaceDeclaration],
@@ -1769,7 +1769,7 @@ class MyClass {
       const { sourceFile } = getInfoFromText("class Test { prop: string; prop2: string; } interface Interface { prop: string; }");
       doNodeArrayCbSyntaxKindTest(
         sourceFile,
-        [SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.StringKeyword, SyntaxKind.EndOfFileToken],
+        [SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.StringKeyword, SyntaxKind.EndOfFile],
         [
           [SyntaxKind.ClassDeclaration, SyntaxKind.InterfaceDeclaration],
           [SyntaxKind.PropertyDeclaration, SyntaxKind.PropertyDeclaration],
@@ -1786,7 +1786,7 @@ class MyClass {
       const { sourceFile } = getInfoFromText("class Test { prop: string; prop2: string; } interface Interface { prop: string; }");
       doNodeArrayCbSyntaxKindTest(
         sourceFile,
-        [SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.StringKeyword, SyntaxKind.EndOfFileToken],
+        [SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.StringKeyword, SyntaxKind.EndOfFile],
         [
           [SyntaxKind.ClassDeclaration, SyntaxKind.InterfaceDeclaration],
           [SyntaxKind.PropertySignature],
@@ -1869,7 +1869,7 @@ class MyClass {
       runTest(
         "class T {} interface I {}",
         sourceFile => sourceFile,
-        [SyntaxKind.ClassDeclaration, SyntaxKind.InterfaceDeclaration, SyntaxKind.EndOfFileToken],
+        [SyntaxKind.ClassDeclaration, SyntaxKind.InterfaceDeclaration, SyntaxKind.EndOfFile],
       );
     });
 
@@ -1877,7 +1877,7 @@ class MyClass {
       runTest(
         "// testing\nclass T {}",
         sourceFile => sourceFile,
-        [SyntaxKind.ClassDeclaration, SyntaxKind.EndOfFileToken],
+        [SyntaxKind.ClassDeclaration, SyntaxKind.EndOfFile],
       );
     });
 
@@ -1902,7 +1902,7 @@ class MyClass {
       runTest(
         "class T {} interface I {}",
         sourceFile => sourceFile,
-        [SyntaxKind.ClassDeclaration, SyntaxKind.Identifier, SyntaxKind.InterfaceDeclaration, SyntaxKind.Identifier, SyntaxKind.EndOfFileToken],
+        [SyntaxKind.ClassDeclaration, SyntaxKind.Identifier, SyntaxKind.InterfaceDeclaration, SyntaxKind.Identifier, SyntaxKind.EndOfFile],
       );
     });
   });
@@ -2051,7 +2051,7 @@ class MyClass {
         traversal => {
           const node = traversal.visitChildren();
           if (ts.isNumericLiteral(node))
-            return traversal.factory.createNumericLiteral((parseInt(node.text, 10) + 1).toString());
+            return traversal.factory.createNumericLiteral((parseInt(node.text, 10) + 1).toString(), ts.TokenFlags.None);
           return node;
         },
         `2; 3; 4;`,
@@ -2075,7 +2075,7 @@ class MyClass {
         traversal => {
           const node = traversal.visitChildren();
           if (ts.isNumericLiteral(node))
-            return traversal.factory.createStringLiteral((parseInt(node.text, 10) + 1).toString());
+            return traversal.factory.createStringLiteral((parseInt(node.text, 10) + 1).toString(), ts.TokenFlags.None);
           return node;
         },
         `"2"; "3"; "4";`,
@@ -2101,7 +2101,7 @@ class MyClass {
         traversal => {
           const node = traversal.visitChildren();
           if (ts.isThrowStatement(node))
-            return traversal.factory.updateThrowStatement(node, traversal.factory.createStringLiteral("test"));
+            return traversal.factory.updateThrowStatement(node, traversal.factory.createStringLiteral("test", ts.TokenFlags.None));
           return node;
         },
         `throw "test";`,
@@ -2116,7 +2116,7 @@ class MyClass {
       doTest("class C {} class B {}", sourceFile => sourceFile.getClassOrThrow("C"), traversal => {
         const node = traversal.visitChildren();
         if (ts.isClassDeclaration(node))
-          return traversal.factory.createInterfaceDeclaration(undefined, "A", undefined, undefined, []);
+          return traversal.factory.createInterfaceDeclaration(undefined, traversal.factory.createIdentifier("A"), undefined, undefined, []);
         return node;
       }, `interface A {\n} class B {}`);
     });
@@ -2146,7 +2146,7 @@ class MyClass {
       doTest("// test\nclass C {}\n// test2\nclass B {}", sourceFile => sourceFile, traversal => {
         const node = traversal.visitChildren();
         if (ts.isClassDeclaration(node))
-          return traversal.factory.createInterfaceDeclaration(undefined, "A", undefined, undefined, []);
+          return traversal.factory.createInterfaceDeclaration(undefined, traversal.factory.createIdentifier("A"), undefined, undefined, []);
         return node;
       }, `// test\ninterface A {\n}\n// test2\ninterface A {\n}`);
     });
@@ -2155,7 +2155,7 @@ class MyClass {
       doTest("/** Testing */\nclass C {}", sourceFile => sourceFile, traversal => {
         const node = traversal.visitChildren();
         if (ts.isClassDeclaration(node))
-          return traversal.factory.createInterfaceDeclaration(undefined, "A", undefined, undefined, []);
+          return traversal.factory.createInterfaceDeclaration(undefined, traversal.factory.createIdentifier("A"), undefined, undefined, []);
         return node;
       }, `interface A {\n}`);
     });
@@ -2186,15 +2186,15 @@ class MyClass {
         return traversal.factory.createFunctionDeclaration(
           undefined,
           undefined,
-          "test",
+          traversal.factory.createIdentifier("test"),
           undefined,
           [],
           undefined,
           traversal.factory.createBlock([]),
         );
       });
-      expect(newNode.getText()).to.equal(`function test() { }`);
-      expect(sourceFile.getText()).to.equal(`function test() { }`);
+      expect(newNode.getText()).to.equal(`function test() {\n}`);
+      expect(sourceFile.getText()).to.equal(`function test() {\n}`);
       expect(node.wasForgotten()).to.be.true;
     });
 
@@ -2206,15 +2206,15 @@ class MyClass {
         return traversal.factory.createFunctionDeclaration(
           undefined,
           undefined,
-          "test",
+          traversal.factory.createIdentifier("test"),
           undefined,
           [],
           undefined,
           traversal.factory.createBlock([]),
         );
       });
-      expect(newNode.getText()).to.equal(`function test() { }`);
-      expect(sourceFile.getText()).to.equal(`function test() { }`);
+      expect(newNode.getText()).to.equal(`function test() {\n}`);
+      expect(sourceFile.getText()).to.equal(`function test() {\n}`);
       expect(node.wasForgotten()).to.be.false;
       expect(node === newNode).to.be.true;
     });

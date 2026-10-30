@@ -31,7 +31,7 @@ describe("ManipulationSettingsContainer", () => {
     const settings = new ManipulationSettingsContainer();
     checkSettings(settings, {
       quoteKind: QuoteKind.Double,
-      newLineKind: NewLineKind.LineFeed,
+      newLineKind: NewLineKind.LF,
       indentationText: IndentationText.FourSpaces,
       insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
       usePrefixAndSuffixTextForRename: false,
@@ -47,7 +47,7 @@ describe("ManipulationSettingsContainer", () => {
 
     checkSettings(settings, {
       quoteKind: QuoteKind.Single,
-      newLineKind: NewLineKind.LineFeed,
+      newLineKind: NewLineKind.LF,
       indentationText: IndentationText.FourSpaces,
       insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
       usePrefixAndSuffixTextForRename: false,
@@ -59,7 +59,7 @@ describe("ManipulationSettingsContainer", () => {
     const settings = new ManipulationSettingsContainer();
     settings.set({
       quoteKind: QuoteKind.Single,
-      newLineKind: NewLineKind.CarriageReturnLineFeed,
+      newLineKind: NewLineKind.CRLF,
       indentationText: IndentationText.EightSpaces,
       insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: false,
       usePrefixAndSuffixTextForRename: true,
@@ -67,7 +67,7 @@ describe("ManipulationSettingsContainer", () => {
 
     checkSettings(settings, {
       quoteKind: QuoteKind.Single,
-      newLineKind: NewLineKind.CarriageReturnLineFeed,
+      newLineKind: NewLineKind.CRLF,
       indentationText: IndentationText.EightSpaces,
       insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: false,
       usePrefixAndSuffixTextForRename: true,
@@ -84,7 +84,7 @@ describe("ManipulationSettingsContainer", () => {
       doTest(new ManipulationSettingsContainer().getEditorSettings(), {
         convertTabsToSpaces: true,
         newLineCharacter: "\n",
-        indentStyle: ts.IndentStyle.Smart,
+        indentStyle: "smart",
         indentSize: 4,
         tabSize: 4,
       });
@@ -95,13 +95,13 @@ describe("ManipulationSettingsContainer", () => {
       container.getEditorSettings(); // fill the internal cache
       container.set({
         indentationText: IndentationText.Tab,
-        newLineKind: NewLineKind.CarriageReturnLineFeed,
+        newLineKind: NewLineKind.CRLF,
       });
 
       doTest(container.getEditorSettings(), {
         convertTabsToSpaces: false,
         newLineCharacter: "\r\n",
-        indentStyle: ts.IndentStyle.Smart,
+        indentStyle: "smart",
         indentSize: 1,
         tabSize: 1,
       });

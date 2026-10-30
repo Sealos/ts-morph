@@ -22,6 +22,6 @@ describe("getCompilerOptionsFromTsConfig", () => {
       filePath: "main.ts",
       text: "",
     }]);
-    doTest(host, { options: { target: undefined, configFilePath: "/tsconfig.json" }, errorCount: 1 });
+    doTest(host, { options: { configFilePath: "/tsconfig.json" }, errorCount: 1 });
   });
 });

@@ -12,26 +12,26 @@ describe("LanguageService", () => {
           emitSkipped: false,
           outputFiles: [{
             fileName: "/" + sourceFile.getBaseName().replace(".ts", ".js"),
-            text: "\"use strict\";\nvar t = 5;\n",
+            text: "\"use strict\";\nconst t = 5;\n",
             writeByteOrderMark: false,
           }],
         });
       }
 
-      const { sourceFile } = getInfoFromText("const t = 5;", { compilerOptions: { target: ScriptTarget.ES5 } });
+      const { sourceFile } = getInfoFromText("const t = 5;", { compilerOptions: { target: ScriptTarget.ES2015 } });
 
       doTest(sourceFile);
       doTest(sourceFile.getFilePath());
     });
 
     it("should get the emit output when specifying a source file", () => {
-      const { sourceFile, project } = getInfoFromText("const t = 5;", { compilerOptions: { target: ScriptTarget.ES5 } });
+      const { sourceFile, project } = getInfoFromText("const t = 5;", { compilerOptions: { target: ScriptTarget.ES2015 } });
       const output = sourceFile._context.languageService.getEmitOutput(sourceFile);
       checkOutput(output, {
         emitSkipped: false,
         outputFiles: [{
           fileName: "/" + sourceFile.getBaseName().replace(".ts", ".js"),
-          text: "\"use strict\";\nvar t = 5;\n",
+          text: "\"use strict\";\nconst t = 5;\n",
           writeByteOrderMark: false,
         }],
       });
@@ -61,16 +61,8 @@ describe("LanguageService", () => {
       const { sourceFile, project } = getInfoFromText("import * as bravo from 'bravo';\nimport * as alpha from 'alpha';", { filePath: "/file.ts" });
       const results = project.getLanguageService().organizeImports(sourceFile);
       expect(results.length).to.equal(1);
-      checkFileTextChanges(results[0], {
-        fileName: "/file.ts",
-        textChanges: [{
-          newText: "",
-          span: { start: 0, length: 32 },
-        }, {
-          newText: "",
-          span: { start: 32, length: 31 },
-        }],
-      });
+      results[0].applyChanges();
+      expect(sourceFile.getFullText()).to.equal("");
     });
 
     it("should organize imports when they're used", () => {
@@ -102,44 +94,10 @@ describe("LanguageService", () => {
   });
 
   describe(nameof<LanguageService>("getEditsForRefactor"), () => {
-    it("should get edits for known refactor 'Move to a new file'", () => {
-      const { sourceFile, project } = getInfoFromText("export class A {}\nfunction f() { return new A(); }", { filePath: "/file.ts" });
-      const nameNode = sourceFile.getClassOrThrow("A").getNameNodeOrThrow();
-      const results = project.getLanguageService().getEditsForRefactor(sourceFile, {}, nameNode, "Move to a new file", "Move to a new file", {});
-      expect(results!.getEdits()).to.lengthOf(2);
-      expect(results!.getRenameFilePath()).to.be.undefined;
-      expect(results!.getRenameLocation()).to.be.undefined;
-
-      const edit1 = results!.getEdits().find(edit => edit.getFilePath() === sourceFile.getFilePath());
-      const edit2 = results!.getEdits().find(edit => edit.getFilePath() === "/A.ts");
-
-      expect(results!.getEdits()[0].isNewFile()).to.be.false;
-      expect(results!.getEdits()[1].isNewFile()).to.be.true;
-
-      checkFileTextChanges(edit1!, {
-        fileName: "/file.ts",
-        textChanges: [{
-          newText: "import { A } from \"./A\";\n\n",
-          span: { start: 0, length: 0 },
-        }, {
-          newText: "",
-          span: { start: 0, length: 18 },
-        }],
-      });
-
-      checkFileTextChanges(edit2!, {
-        fileName: "/A.ts",
-        textChanges: [{
-          newText: "export class A { }\n",
-          span: { start: 0, length: 0 },
-        }],
-      });
-    });
-
-    it("should return undefined if given refactor doesn't exists", () => {
-      const { project, sourceFile } = getInfoFromText("const moment = require('moment'); moment(); ");
-      expect(project.getLanguageService().getEditsForRefactor(sourceFile, {}, 1, "Non Existent Refactor", "Non Existent Refactor Action", {}))
-        .to.be.undefined;
+    it("rejects refactoring actions unavailable in the native beta", () => {
+      const { project, sourceFile } = getInfoFromText("export class A {}", { filePath: "/file.ts" });
+      expect(() => project.getLanguageService().getEditsForRefactor(sourceFile, {}, 0, "Move to a new file", "Move to a new file", {}))
+        .to.throw("does not yet expose refactoring actions");
     });
 
     it("should throw for a file that doesn't exist", () => {
@@ -170,30 +128,15 @@ describe("LanguageService", () => {
   });
 
   describe(nameof<LanguageService>("getCodeFixesAtPosition"), () => {
-    it("should get code fixes at position for known code fixes convertToEsModule (error code 80001)", () => {
-      const { sourceFile, project } = getInfoFromText("const moment = require('moment'); moment(); ", { filePath: "/file.ts" });
-      const variableDeclaration = sourceFile.getVariableDeclarationOrThrow("moment");
-      const results = project.getLanguageService().getCodeFixesAtPosition(
-        sourceFile,
-        variableDeclaration.getStart(),
-        variableDeclaration.getEnd(),
-        [80001],
-      );
-
-      expect(results).to.lengthOf(1);
-      expect(results[0]!.getFixName()).to.equal("convertToEsModule");
-      expect(results[0]!.getDescription()).to.equal("Convert to ES module");
-
-      expect(results[0]!.getFixId()).to.be.undefined;
-      expect(results[0]!.getFixAllDescription()).to.be.undefined;
-
-      checkFileTextChanges(results[0]!.getChanges()[0], {
-        fileName: "/file.ts",
-        textChanges: [{
-          newText: "import moment from 'moment';",
-          span: { start: 0, length: 33 },
-        }],
-      });
+    it("gets and applies a native import code fix", () => {
+      const { project, sourceFile } = getInfoFromText("const value = new Missing();", { filePath: "/file.ts" });
+      project.createSourceFile("/Missing.ts", "export class Missing {}");
+      const position = sourceFile.getFullText().indexOf("Missing");
+      const fixes = project.getLanguageService().getCodeFixesAtPosition(sourceFile, position, position + 7, [2304], {}, {});
+      const fix = fixes.find(fix => fix.getDescription().startsWith("Add import from"));
+      expect(fix).not.to.be.undefined;
+      fix!.getChanges().forEach(change => change.applyChanges());
+      expect(sourceFile.getFullText()).to.contain("import { Missing } from \"./Missing\";");
     });
 
     it("should throw for a file that doesn't exist", () => {
@@ -206,11 +149,8 @@ describe("LanguageService", () => {
     it("should return default suggestion diagnostics for file", () => {
       const { sourceFile, project } = getInfoFromText("const moment = require('moment'); moment(); ");
       const diagnostics = project.getLanguageService().getSuggestionDiagnostics(sourceFile);
-      expect(diagnostics).to.lengthOf(1);
-      expect(diagnostics[0].getCode()).to.equal(80005);
-      expect(diagnostics[0].getMessageText()).to.equal("'require' call may be converted to an import.");
-      expect(diagnostics[0].getStart()).to.equal(15);
-      expect(diagnostics[0].getLength()).to.equal(17);
+      // The beta does not implement the legacy require-to-import suggestion.
+      expect(diagnostics).to.deep.equal([]);
     });
 
     it("should throw for a file that doesn't exist", () => {

@@ -1,2 +1,4 @@
-export * as path from "https://deno.land/std@0.208.0/path/mod.ts";
-export * as tsMorph from "jsr:@ts-morph/ts-morph";
+import * as nodePath from "node:path";
+import { fileURLToPath } from "node:url";
+export const path = { ...nodePath, fromFileUrl: fileURLToPath };
+export * as tsMorph from "ts-morph";

@@ -1,7 +1,57 @@
 // DO NOT EDIT - Automatically maintained by createStructurePrinterFactory.ts
 import { Memoize } from "@ts-morph/common";
-import { SupportedFormatCodeSettings } from "../options";
-import * as structurePrinters from "../structurePrinters";
+import { SupportedFormatCodeSettings } from "../options/index";
+import { InitializerExpressionableNodeStructurePrinter } from "../structurePrinters/base/InitializerExpressionableNodeStructurePrinter";
+import { ModifierableNodeStructurePrinter } from "../structurePrinters/base/ModifierableNodeStructurePrinter";
+import { ReturnTypedNodeStructurePrinter } from "../structurePrinters/base/ReturnTypedNodeStructurePrinter";
+import { TypedNodeStructurePrinter } from "../structurePrinters/base/TypedNodeStructurePrinter";
+import { ClassDeclarationStructurePrinter } from "../structurePrinters/class/ClassDeclarationStructurePrinter";
+import { ClassMemberStructurePrinter } from "../structurePrinters/class/ClassMemberStructurePrinter";
+import { ClassStaticBlockDeclarationStructurePrinter } from "../structurePrinters/class/ClassStaticBlockDeclarationStructurePrinter";
+import { ConstructorDeclarationStructurePrinter } from "../structurePrinters/class/ConstructorDeclarationStructurePrinter";
+import { GetAccessorDeclarationStructurePrinter } from "../structurePrinters/class/GetAccessorDeclarationStructurePrinter";
+import { MethodDeclarationStructurePrinter } from "../structurePrinters/class/MethodDeclarationStructurePrinter";
+import { PropertyDeclarationStructurePrinter } from "../structurePrinters/class/PropertyDeclarationStructurePrinter";
+import { SetAccessorDeclarationStructurePrinter } from "../structurePrinters/class/SetAccessorDeclarationStructurePrinter";
+import { DecoratorStructurePrinter } from "../structurePrinters/decorator/DecoratorStructurePrinter";
+import { JSDocStructurePrinter } from "../structurePrinters/doc/JSDocStructurePrinter";
+import { JSDocTagStructurePrinter } from "../structurePrinters/doc/JSDocTagStructurePrinter";
+import { EnumDeclarationStructurePrinter } from "../structurePrinters/enum/EnumDeclarationStructurePrinter";
+import { EnumMemberStructurePrinter } from "../structurePrinters/enum/EnumMemberStructurePrinter";
+import { ObjectLiteralExpressionPropertyStructurePrinter } from "../structurePrinters/expression/object/ObjectLiteralExpressionPropertyStructurePrinter";
+import { PropertyAssignmentStructurePrinter } from "../structurePrinters/expression/object/PropertyAssignmentStructurePrinter";
+import { ShorthandPropertyAssignmentStructurePrinter } from "../structurePrinters/expression/object/ShorthandPropertyAssignmentStructurePrinter";
+import { SpreadAssignmentStructurePrinter } from "../structurePrinters/expression/object/SpreadAssignmentStructurePrinter";
+import { FunctionDeclarationStructurePrinter } from "../structurePrinters/function/FunctionDeclarationStructurePrinter";
+import { ParameterDeclarationStructurePrinter } from "../structurePrinters/function/ParameterDeclarationStructurePrinter";
+import { CallSignatureDeclarationStructurePrinter } from "../structurePrinters/interface/CallSignatureDeclarationStructurePrinter";
+import { ConstructSignatureDeclarationStructurePrinter } from "../structurePrinters/interface/ConstructSignatureDeclarationStructurePrinter";
+import { IndexSignatureDeclarationStructurePrinter } from "../structurePrinters/interface/IndexSignatureDeclarationStructurePrinter";
+import { InterfaceDeclarationStructurePrinter } from "../structurePrinters/interface/InterfaceDeclarationStructurePrinter";
+import { MethodSignatureStructurePrinter } from "../structurePrinters/interface/MethodSignatureStructurePrinter";
+import { PropertySignatureStructurePrinter } from "../structurePrinters/interface/PropertySignatureStructurePrinter";
+import { TypeElementMemberedNodeStructurePrinter } from "../structurePrinters/interface/TypeElementMemberedNodeStructurePrinter";
+import { TypeElementMemberStructurePrinter } from "../structurePrinters/interface/TypeElementMemberStructurePrinter";
+import { JsxAttributeDeciderStructurePrinter } from "../structurePrinters/jsx/JsxAttributeDeciderStructurePrinter";
+import { JsxAttributeStructurePrinter } from "../structurePrinters/jsx/JsxAttributeStructurePrinter";
+import { JsxChildDeciderStructurePrinter } from "../structurePrinters/jsx/JsxChildDeciderStructurePrinter";
+import { JsxElementStructurePrinter } from "../structurePrinters/jsx/JsxElementStructurePrinter";
+import { JsxNamespacedNameStructurePrinter } from "../structurePrinters/jsx/JsxNamespacedNameStructurePrinter";
+import { JsxSelfClosingElementStructurePrinter } from "../structurePrinters/jsx/JsxSelfClosingElementStructurePrinter";
+import { JsxSpreadAttributeStructurePrinter } from "../structurePrinters/jsx/JsxSpreadAttributeStructurePrinter";
+import { ExportAssignmentStructurePrinter } from "../structurePrinters/module/ExportAssignmentStructurePrinter";
+import { ExportDeclarationStructurePrinter } from "../structurePrinters/module/ExportDeclarationStructurePrinter";
+import { ImportAttributeStructurePrinter } from "../structurePrinters/module/ImportAttributeStructurePrinter";
+import { ImportDeclarationStructurePrinter } from "../structurePrinters/module/ImportDeclarationStructurePrinter";
+import { ModuleDeclarationStructurePrinter } from "../structurePrinters/module/ModuleDeclarationStructurePrinter";
+import { NamedImportExportSpecifierStructurePrinter } from "../structurePrinters/module/NamedImportExportSpecifierStructurePrinter";
+import { SourceFileStructurePrinter } from "../structurePrinters/module/SourceFileStructurePrinter";
+import { StatementedNodeStructurePrinter } from "../structurePrinters/statement/StatementedNodeStructurePrinter";
+import { StatementStructurePrinter } from "../structurePrinters/statement/StatementStructurePrinter";
+import { VariableStatementStructurePrinter } from "../structurePrinters/statement/VariableStatementStructurePrinter";
+import { TypeAliasDeclarationStructurePrinter } from "../structurePrinters/types/TypeAliasDeclarationStructurePrinter";
+import { TypeParameterDeclarationStructurePrinter } from "../structurePrinters/types/TypeParameterDeclarationStructurePrinter";
+import { VariableDeclarationStructurePrinter } from "../structurePrinters/variable/VariableDeclarationStructurePrinter";
 
 /** Cached lazy factory for StructurePrinters. */
 export class StructurePrinterFactory {
@@ -13,257 +63,257 @@ export class StructurePrinterFactory {
   }
 
   @Memoize
-  forInitializerExpressionableNode(): structurePrinters.InitializerExpressionableNodeStructurePrinter {
-    return new structurePrinters.InitializerExpressionableNodeStructurePrinter();
+  forInitializerExpressionableNode(): InitializerExpressionableNodeStructurePrinter {
+    return new InitializerExpressionableNodeStructurePrinter();
   }
 
   @Memoize
-  forModifierableNode(): structurePrinters.ModifierableNodeStructurePrinter {
-    return new structurePrinters.ModifierableNodeStructurePrinter();
+  forModifierableNode(): ModifierableNodeStructurePrinter {
+    return new ModifierableNodeStructurePrinter();
   }
 
   @Memoize
-  forReturnTypedNode(alwaysWrite?: boolean): structurePrinters.ReturnTypedNodeStructurePrinter {
-    return new structurePrinters.ReturnTypedNodeStructurePrinter(alwaysWrite);
+  forReturnTypedNode(alwaysWrite?: boolean): ReturnTypedNodeStructurePrinter {
+    return new ReturnTypedNodeStructurePrinter(alwaysWrite);
   }
 
   @Memoize
-  forTypedNode(separator: string, alwaysWrite?: boolean): structurePrinters.TypedNodeStructurePrinter {
-    return new structurePrinters.TypedNodeStructurePrinter(separator, alwaysWrite);
+  forTypedNode(separator: string, alwaysWrite?: boolean): TypedNodeStructurePrinter {
+    return new TypedNodeStructurePrinter(separator, alwaysWrite);
   }
 
   @Memoize
-  forClassDeclaration(options: { isAmbient: boolean }): structurePrinters.ClassDeclarationStructurePrinter {
-    return new structurePrinters.ClassDeclarationStructurePrinter(this, options);
+  forGetAccessorDeclaration(options: { isAmbient: boolean }): GetAccessorDeclarationStructurePrinter {
+    return new GetAccessorDeclarationStructurePrinter(this, options);
   }
 
   @Memoize
-  forClassMember(options: { isAmbient: boolean }): structurePrinters.ClassMemberStructurePrinter {
-    return new structurePrinters.ClassMemberStructurePrinter(this, options);
+  forSetAccessorDeclaration(options: { isAmbient: boolean }): SetAccessorDeclarationStructurePrinter {
+    return new SetAccessorDeclarationStructurePrinter(this, options);
   }
 
   @Memoize
-  forClassStaticBlockDeclaration(): structurePrinters.ClassStaticBlockDeclarationStructurePrinter {
-    return new structurePrinters.ClassStaticBlockDeclarationStructurePrinter(this);
+  forClassDeclaration(options: { isAmbient: boolean }): ClassDeclarationStructurePrinter {
+    return new ClassDeclarationStructurePrinter(this, options);
   }
 
   @Memoize
-  forConstructorDeclaration(options: { isAmbient: boolean }): structurePrinters.ConstructorDeclarationStructurePrinter {
-    return new structurePrinters.ConstructorDeclarationStructurePrinter(this, options);
+  forClassMember(options: { isAmbient: boolean }): ClassMemberStructurePrinter {
+    return new ClassMemberStructurePrinter(this, options);
   }
 
   @Memoize
-  forGetAccessorDeclaration(options: { isAmbient: boolean }): structurePrinters.GetAccessorDeclarationStructurePrinter {
-    return new structurePrinters.GetAccessorDeclarationStructurePrinter(this, options);
+  forClassStaticBlockDeclaration(): ClassStaticBlockDeclarationStructurePrinter {
+    return new ClassStaticBlockDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forMethodDeclaration(options: { isAmbient: boolean }): structurePrinters.MethodDeclarationStructurePrinter {
-    return new structurePrinters.MethodDeclarationStructurePrinter(this, options);
+  forConstructorDeclaration(options: { isAmbient: boolean }): ConstructorDeclarationStructurePrinter {
+    return new ConstructorDeclarationStructurePrinter(this, options);
   }
 
   @Memoize
-  forPropertyDeclaration(): structurePrinters.PropertyDeclarationStructurePrinter {
-    return new structurePrinters.PropertyDeclarationStructurePrinter(this);
+  forMethodDeclaration(options: { isAmbient: boolean }): MethodDeclarationStructurePrinter {
+    return new MethodDeclarationStructurePrinter(this, options);
   }
 
   @Memoize
-  forSetAccessorDeclaration(options: { isAmbient: boolean }): structurePrinters.SetAccessorDeclarationStructurePrinter {
-    return new structurePrinters.SetAccessorDeclarationStructurePrinter(this, options);
+  forPropertyDeclaration(): PropertyDeclarationStructurePrinter {
+    return new PropertyDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forDecorator(): structurePrinters.DecoratorStructurePrinter {
-    return new structurePrinters.DecoratorStructurePrinter(this);
+  forDecorator(): DecoratorStructurePrinter {
+    return new DecoratorStructurePrinter(this);
   }
 
   @Memoize
-  forJSDoc(): structurePrinters.JSDocStructurePrinter {
-    return new structurePrinters.JSDocStructurePrinter(this);
+  forJSDoc(): JSDocStructurePrinter {
+    return new JSDocStructurePrinter(this);
   }
 
   @Memoize
-  forJSDocTag(options: { printStarsOnNewLine: boolean }): structurePrinters.JSDocTagStructurePrinter {
-    return new structurePrinters.JSDocTagStructurePrinter(this, options);
+  forJSDocTag(options: { printStarsOnNewLine: boolean }): JSDocTagStructurePrinter {
+    return new JSDocTagStructurePrinter(this, options);
   }
 
   @Memoize
-  forEnumDeclaration(): structurePrinters.EnumDeclarationStructurePrinter {
-    return new structurePrinters.EnumDeclarationStructurePrinter(this);
+  forEnumDeclaration(): EnumDeclarationStructurePrinter {
+    return new EnumDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forEnumMember(): structurePrinters.EnumMemberStructurePrinter {
-    return new structurePrinters.EnumMemberStructurePrinter(this);
+  forEnumMember(): EnumMemberStructurePrinter {
+    return new EnumMemberStructurePrinter(this);
   }
 
   @Memoize
-  forObjectLiteralExpressionProperty(): structurePrinters.ObjectLiteralExpressionPropertyStructurePrinter {
-    return new structurePrinters.ObjectLiteralExpressionPropertyStructurePrinter(this);
+  forObjectLiteralExpressionProperty(): ObjectLiteralExpressionPropertyStructurePrinter {
+    return new ObjectLiteralExpressionPropertyStructurePrinter(this);
   }
 
   @Memoize
-  forPropertyAssignment(): structurePrinters.PropertyAssignmentStructurePrinter {
-    return new structurePrinters.PropertyAssignmentStructurePrinter(this);
+  forPropertyAssignment(): PropertyAssignmentStructurePrinter {
+    return new PropertyAssignmentStructurePrinter(this);
   }
 
   @Memoize
-  forShorthandPropertyAssignment(): structurePrinters.ShorthandPropertyAssignmentStructurePrinter {
-    return new structurePrinters.ShorthandPropertyAssignmentStructurePrinter(this);
+  forShorthandPropertyAssignment(): ShorthandPropertyAssignmentStructurePrinter {
+    return new ShorthandPropertyAssignmentStructurePrinter(this);
   }
 
   @Memoize
-  forSpreadAssignment(): structurePrinters.SpreadAssignmentStructurePrinter {
-    return new structurePrinters.SpreadAssignmentStructurePrinter(this);
+  forSpreadAssignment(): SpreadAssignmentStructurePrinter {
+    return new SpreadAssignmentStructurePrinter(this);
   }
 
   @Memoize
-  forFunctionDeclaration(options: { isAmbient: boolean }): structurePrinters.FunctionDeclarationStructurePrinter {
-    return new structurePrinters.FunctionDeclarationStructurePrinter(this, options);
+  forFunctionDeclaration(options: { isAmbient: boolean }): FunctionDeclarationStructurePrinter {
+    return new FunctionDeclarationStructurePrinter(this, options);
   }
 
   @Memoize
-  forParameterDeclaration(): structurePrinters.ParameterDeclarationStructurePrinter {
-    return new structurePrinters.ParameterDeclarationStructurePrinter(this);
+  forParameterDeclaration(): ParameterDeclarationStructurePrinter {
+    return new ParameterDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forCallSignatureDeclaration(): structurePrinters.CallSignatureDeclarationStructurePrinter {
-    return new structurePrinters.CallSignatureDeclarationStructurePrinter(this);
+  forCallSignatureDeclaration(): CallSignatureDeclarationStructurePrinter {
+    return new CallSignatureDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forConstructSignatureDeclaration(): structurePrinters.ConstructSignatureDeclarationStructurePrinter {
-    return new structurePrinters.ConstructSignatureDeclarationStructurePrinter(this);
+  forConstructSignatureDeclaration(): ConstructSignatureDeclarationStructurePrinter {
+    return new ConstructSignatureDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forIndexSignatureDeclaration(): structurePrinters.IndexSignatureDeclarationStructurePrinter {
-    return new structurePrinters.IndexSignatureDeclarationStructurePrinter(this);
+  forIndexSignatureDeclaration(): IndexSignatureDeclarationStructurePrinter {
+    return new IndexSignatureDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forInterfaceDeclaration(): structurePrinters.InterfaceDeclarationStructurePrinter {
-    return new structurePrinters.InterfaceDeclarationStructurePrinter(this);
+  forInterfaceDeclaration(): InterfaceDeclarationStructurePrinter {
+    return new InterfaceDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forMethodSignature(): structurePrinters.MethodSignatureStructurePrinter {
-    return new structurePrinters.MethodSignatureStructurePrinter(this);
+  forMethodSignature(): MethodSignatureStructurePrinter {
+    return new MethodSignatureStructurePrinter(this);
   }
 
   @Memoize
-  forPropertySignature(): structurePrinters.PropertySignatureStructurePrinter {
-    return new structurePrinters.PropertySignatureStructurePrinter(this);
+  forPropertySignature(): PropertySignatureStructurePrinter {
+    return new PropertySignatureStructurePrinter(this);
   }
 
   @Memoize
-  forTypeElementMemberedNode(): structurePrinters.TypeElementMemberedNodeStructurePrinter {
-    return new structurePrinters.TypeElementMemberedNodeStructurePrinter(this);
+  forTypeElementMemberedNode(): TypeElementMemberedNodeStructurePrinter {
+    return new TypeElementMemberedNodeStructurePrinter(this);
   }
 
   @Memoize
-  forTypeElementMember(): structurePrinters.TypeElementMemberStructurePrinter {
-    return new structurePrinters.TypeElementMemberStructurePrinter(this);
+  forTypeElementMember(): TypeElementMemberStructurePrinter {
+    return new TypeElementMemberStructurePrinter(this);
   }
 
   @Memoize
-  forJsxAttributeDecider(): structurePrinters.JsxAttributeDeciderStructurePrinter {
-    return new structurePrinters.JsxAttributeDeciderStructurePrinter(this);
+  forJsxAttributeDecider(): JsxAttributeDeciderStructurePrinter {
+    return new JsxAttributeDeciderStructurePrinter(this);
   }
 
   @Memoize
-  forJsxAttribute(): structurePrinters.JsxAttributeStructurePrinter {
-    return new structurePrinters.JsxAttributeStructurePrinter(this);
+  forJsxAttribute(): JsxAttributeStructurePrinter {
+    return new JsxAttributeStructurePrinter(this);
   }
 
   @Memoize
-  forJsxChildDecider(): structurePrinters.JsxChildDeciderStructurePrinter {
-    return new structurePrinters.JsxChildDeciderStructurePrinter(this);
+  forJsxChildDecider(): JsxChildDeciderStructurePrinter {
+    return new JsxChildDeciderStructurePrinter(this);
   }
 
   @Memoize
-  forJsxElement(): structurePrinters.JsxElementStructurePrinter {
-    return new structurePrinters.JsxElementStructurePrinter(this);
+  forJsxElement(): JsxElementStructurePrinter {
+    return new JsxElementStructurePrinter(this);
   }
 
   @Memoize
-  forJsxNamespacedName(): structurePrinters.JsxNamespacedNameStructurePrinter {
-    return new structurePrinters.JsxNamespacedNameStructurePrinter(this);
+  forJsxNamespacedName(): JsxNamespacedNameStructurePrinter {
+    return new JsxNamespacedNameStructurePrinter(this);
   }
 
   @Memoize
-  forJsxSelfClosingElement(): structurePrinters.JsxSelfClosingElementStructurePrinter {
-    return new structurePrinters.JsxSelfClosingElementStructurePrinter(this);
+  forJsxSelfClosingElement(): JsxSelfClosingElementStructurePrinter {
+    return new JsxSelfClosingElementStructurePrinter(this);
   }
 
   @Memoize
-  forJsxSpreadAttribute(): structurePrinters.JsxSpreadAttributeStructurePrinter {
-    return new structurePrinters.JsxSpreadAttributeStructurePrinter(this);
+  forJsxSpreadAttribute(): JsxSpreadAttributeStructurePrinter {
+    return new JsxSpreadAttributeStructurePrinter(this);
   }
 
   @Memoize
-  forExportAssignment(): structurePrinters.ExportAssignmentStructurePrinter {
-    return new structurePrinters.ExportAssignmentStructurePrinter(this);
+  forExportAssignment(): ExportAssignmentStructurePrinter {
+    return new ExportAssignmentStructurePrinter(this);
   }
 
   @Memoize
-  forExportDeclaration(): structurePrinters.ExportDeclarationStructurePrinter {
-    return new structurePrinters.ExportDeclarationStructurePrinter(this);
+  forExportDeclaration(): ExportDeclarationStructurePrinter {
+    return new ExportDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forImportAttribute(): structurePrinters.ImportAttributeStructurePrinter {
-    return new structurePrinters.ImportAttributeStructurePrinter(this);
+  forImportAttribute(): ImportAttributeStructurePrinter {
+    return new ImportAttributeStructurePrinter(this);
   }
 
   @Memoize
-  forImportDeclaration(): structurePrinters.ImportDeclarationStructurePrinter {
-    return new structurePrinters.ImportDeclarationStructurePrinter(this);
+  forImportDeclaration(): ImportDeclarationStructurePrinter {
+    return new ImportDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forModuleDeclaration(options: { isAmbient: boolean }): structurePrinters.ModuleDeclarationStructurePrinter {
-    return new structurePrinters.ModuleDeclarationStructurePrinter(this, options);
+  forModuleDeclaration(options: { isAmbient: boolean }): ModuleDeclarationStructurePrinter {
+    return new ModuleDeclarationStructurePrinter(this, options);
   }
 
   @Memoize
-  forNamedImportExportSpecifier(): structurePrinters.NamedImportExportSpecifierStructurePrinter {
-    return new structurePrinters.NamedImportExportSpecifierStructurePrinter(this);
+  forNamedImportExportSpecifier(): NamedImportExportSpecifierStructurePrinter {
+    return new NamedImportExportSpecifierStructurePrinter(this);
   }
 
   @Memoize
-  forSourceFile(options: { isAmbient: boolean }): structurePrinters.SourceFileStructurePrinter {
-    return new structurePrinters.SourceFileStructurePrinter(this, options);
+  forSourceFile(options: { isAmbient: boolean }): SourceFileStructurePrinter {
+    return new SourceFileStructurePrinter(this, options);
   }
 
   @Memoize
-  forStatementedNode(options: { isAmbient: boolean }): structurePrinters.StatementedNodeStructurePrinter {
-    return new structurePrinters.StatementedNodeStructurePrinter(this, options);
+  forStatementedNode(options: { isAmbient: boolean }): StatementedNodeStructurePrinter {
+    return new StatementedNodeStructurePrinter(this, options);
   }
 
   @Memoize
-  forStatement(options: { isAmbient: boolean }): structurePrinters.StatementStructurePrinter {
-    return new structurePrinters.StatementStructurePrinter(this, options);
+  forStatement(options: { isAmbient: boolean }): StatementStructurePrinter {
+    return new StatementStructurePrinter(this, options);
   }
 
   @Memoize
-  forVariableStatement(): structurePrinters.VariableStatementStructurePrinter {
-    return new structurePrinters.VariableStatementStructurePrinter(this);
+  forVariableStatement(): VariableStatementStructurePrinter {
+    return new VariableStatementStructurePrinter(this);
   }
 
   @Memoize
-  forTypeAliasDeclaration(): structurePrinters.TypeAliasDeclarationStructurePrinter {
-    return new structurePrinters.TypeAliasDeclarationStructurePrinter(this);
+  forTypeAliasDeclaration(): TypeAliasDeclarationStructurePrinter {
+    return new TypeAliasDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forTypeParameterDeclaration(): structurePrinters.TypeParameterDeclarationStructurePrinter {
-    return new structurePrinters.TypeParameterDeclarationStructurePrinter(this);
+  forTypeParameterDeclaration(): TypeParameterDeclarationStructurePrinter {
+    return new TypeParameterDeclarationStructurePrinter(this);
   }
 
   @Memoize
-  forVariableDeclaration(): structurePrinters.VariableDeclarationStructurePrinter {
-    return new structurePrinters.VariableDeclarationStructurePrinter(this);
+  forVariableDeclaration(): VariableDeclarationStructurePrinter {
+    return new VariableDeclarationStructurePrinter(this);
   }
 }

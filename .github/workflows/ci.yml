@@ -3,48 +3,24 @@ name: CI
 on:
   pull_request:
   push:
-    branches:
-      - latest
-    tags:
-      - "*"
+    branches: [latest]
+    tags: ["*"]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["22.12.0", "24.x"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
-      - uses: denoland/setup-deno@v2
+      - uses: actions/setup-node@v6
         with:
-          cache: true
-          deno-version: canary
-      - name: Build
-        run: |
-          deno install
-          deno task build
-      - name: Type check
-        run: |
-          deno task -r ensure-no-project-compile-errors
-      - name: Test
-        run: |
-          deno task -r test:ci
-          deno task -r test:ts-versions
-      - name: Code Verification
-        run: |
-          deno task -r code-verification
-
-  jsr:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
-      - uses: denoland/setup-deno@v2
-        with:
-          cache: true
-          deno-version: canary
-      - run: deno install
-      - name: Build
-        run: deno task build:deno
-      - name: Test
-        run: cd deno && deno test --allow-read
-      - name: Publish
-        run: cd deno && deno publish --dry-run
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run type-check
+      - run: npm test
+      - run: npm run code-verification -w ts-morph

@@ -41,9 +41,9 @@ export function validateCodeFences(
     // todo: add more functions here in the future
     function forGetChildren() {
       const getChildrenSymbol = tsInspector
-        .getTsSymbol()
-        .getExportOrThrow("Node")
-        .getMemberOrThrow("getChildren");
+        .getTsExport("Node")
+        .getDeclaredType()
+        .getPropertyOrThrow("getChildren");
 
       // wish it were possible to get the references from a symbol
       const methodSignature = getChildrenSymbol.getValueDeclarationOrThrow() as tsMorph.MethodSignature;

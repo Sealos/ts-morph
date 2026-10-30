@@ -19,9 +19,6 @@ export function createStructurePrinterFactory(inspector: TsMorphInspector) {
   }, {
     namedImports: ["SupportedFormatCodeSettings"],
     moduleSpecifier: sourceFile.getRelativePathAsModuleSpecifierTo(project.getSourceFileOrThrow("src/options/index.ts")),
-  }, {
-    namespaceImport: "structurePrinters",
-    moduleSpecifier: sourceFile.getRelativePathAsModuleSpecifierTo(project.getSourceFileOrThrow("src/structurePrinters/index.ts")),
   }]);
 
   sourceFile.addClass({
@@ -55,12 +52,16 @@ export function createStructurePrinterFactory(inspector: TsMorphInspector) {
       const ctorParams = ctor?.getParameters() ?? [];
       const exposedCtorParams = ctorParams.filter(exposeCtorParam);
       const name = structurePrinter.getNameOrThrow();
+      sourceFile.addImportDeclaration({
+        namedImports: [name],
+        moduleSpecifier: sourceFile.getRelativePathAsModuleSpecifierTo(structurePrinter.getSourceFile()),
+      });
       methods.push({
         kind: tsMorph.StructureKind.Method,
         decorators: [{ name: "Memoize" }],
         name: `for${name.replace(/StructurePrinter$/, "")}`,
-        returnType: `structurePrinters.${name}`,
-        statements: [`return new structurePrinters.${name}(${ctorParams.map(ctorParamToArgument).join(", ")});`],
+        returnType: name,
+        statements: [`return new ${name}(${ctorParams.map(ctorParamToArgument).join(", ")});`],
         parameters: exposedCtorParams.map(p => ({
           name: p.getName(),
           type: getTypeText(p),

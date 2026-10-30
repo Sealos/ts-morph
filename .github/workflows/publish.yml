@@ -14,20 +14,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: canary
       - uses: actions/setup-node@v6
         with:
           node-version: "24.x"
           registry-url: "https://registry.npmjs.org"
-      - run: deno install
-      - name: Build JSR
-        run: deno task build:deno
-      - name: Publish JSR
-        run: cd deno && deno publish
+      - run: npm ci
       - name: Build npm
-        run: deno task build
+        run: npm run build
+      - name: Validate
+        run: npm run type-check && npm test
       - name: Publish npm
         shell: bash
         run: |

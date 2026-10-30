@@ -4,6 +4,8 @@ import { JSDocTagInfo, Node } from "../ast";
 import { Type } from "../types";
 
 export class Symbol {
+  readonly #epoch: number;
+
   /** @internal */
   readonly #context: ProjectContext;
   /** @internal */
@@ -13,6 +15,7 @@ export class Symbol {
    * Gets the underlying compiler symbol.
    */
   get compilerSymbol(): ts.Symbol {
+    this.#context.compilerFactory.documentRegistry.nativeSession.assertEpoch(this.#epoch);
     return this.#compilerSymbol;
   }
 
@@ -24,6 +27,7 @@ export class Symbol {
    */
   constructor(context: ProjectContext, symbol: ts.Symbol) {
     this.#context = context;
+    this.#epoch = context.compilerFactory.documentRegistry.nativeSession.epoch;
     this.#compilerSymbol = symbol;
 
     // wrap these immediately, but do not memoize because the underlying symbol might be mutated
@@ -35,14 +39,14 @@ export class Symbol {
    * Gets the symbol name.
    */
   getName() {
-    return this.compilerSymbol.getName();
+    return this.compilerSymbol.name;
   }
 
   /**
    * Gets the escaped name.
    */
   getEscapedName() {
-    return this.compilerSymbol.getEscapedName() as string;
+    return this.compilerSymbol.escapedName as string;
   }
 
   /**
@@ -105,7 +109,7 @@ export class Symbol {
    * Gets the symbol flags.
    */
   getFlags(): SymbolFlags {
-    return this.compilerSymbol.getFlags();
+    return this.compilerSymbol.flags;
   }
 
   /**
@@ -130,7 +134,7 @@ export class Symbol {
    * Gets the value declaration of the symbol or returns undefined if it doesn't exist.
    */
   getValueDeclaration(): Node | undefined {
-    const declaration = this.compilerSymbol.valueDeclaration;
+    const declaration = this.compilerSymbol.valueDeclaration?.resolve();
     if (declaration == null)
       return undefined;
     return this.#context.compilerFactory.getNodeFromCompilerNode(declaration, this.#context.compilerFactory.getSourceFileForNode(declaration));
@@ -141,7 +145,10 @@ export class Symbol {
    */
   getDeclarations(): Node[] {
     return (this.compilerSymbol.declarations ?? [])
-      .map(d => this.#context.compilerFactory.getNodeFromCompilerNode(d, this.#context.compilerFactory.getSourceFileForNode(d)));
+      .map(handle => {
+        const d = errors.throwIfNullOrUndefined(handle.resolve(), "Native declaration could not be resolved.");
+        return this.#context.compilerFactory.getNodeFromCompilerNode(d, this.#context.compilerFactory.getSourceFileForNode(d));
+      });
   }
 
   /**
@@ -157,20 +164,15 @@ export class Symbol {
    * @param name - Name of the export.
    */
   getExport(name: string): Symbol | undefined {
-    if (this.compilerSymbol.exports == null)
-      return undefined;
-
-    const tsSymbol = this.compilerSymbol.exports.get(ts.escapeLeadingUnderscores(name));
-    return tsSymbol == null ? undefined : this.#context.compilerFactory.getSymbol(tsSymbol);
+    const symbol = this.compilerSymbol.getExports().get(ts.escapeLeadingUnderscores(name));
+    return symbol == null ? undefined : this.#context.compilerFactory.getSymbol(symbol);
   }
 
   /**
    * Gets the exports from the symbol.
    */
   getExports(): Symbol[] {
-    if (this.compilerSymbol.exports == null)
-      return [];
-    return Array.from(this.compilerSymbol.exports.values()).map(symbol => this.#context.compilerFactory.getSymbol(symbol));
+    return Array.from(this.compilerSymbol.getExports().values()).map(symbol => this.#context.compilerFactory.getSymbol(symbol));
   }
 
   /**
@@ -186,20 +188,26 @@ export class Symbol {
    * @param name - Name of the global export.
    */
   getGlobalExport(name: string): Symbol | undefined {
-    if (this.compilerSymbol.globalExports == null)
-      return undefined;
-
-    const tsSymbol = this.compilerSymbol.globalExports.get(ts.escapeLeadingUnderscores(name));
-    return tsSymbol == null ? undefined : this.#context.compilerFactory.getSymbol(tsSymbol);
+    return this.getGlobalExports().find(symbol => symbol.getName() === name);
   }
 
   /**
    * Gets the global exports from the symbol.
    */
   getGlobalExports(): Symbol[] {
-    if (this.compilerSymbol.globalExports == null)
-      return [];
-    return Array.from(this.compilerSymbol.globalExports.values()).map(symbol => this.#context.compilerFactory.getSymbol(symbol));
+    const result: Symbol[] = [];
+    for (const declaration of this.getDeclarations()) {
+      if (!Node.isSourceFile(declaration))
+        continue;
+      for (const statement of declaration.getStatements()) {
+        if (ts.isNamespaceExportDeclaration(statement.compilerNode)) {
+          const symbol = this.#context.typeChecker.compilerObject.getSymbolAtLocation((statement.compilerNode as ts.NamespaceExportDeclaration).name);
+          if (symbol != null)
+            result.push(this.#context.compilerFactory.getSymbol(symbol));
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -215,20 +223,15 @@ export class Symbol {
    * @param name - Name of the member.
    */
   getMember(name: string): Symbol | undefined {
-    if (this.compilerSymbol.members == null)
-      return undefined;
-
-    const tsSymbol = this.compilerSymbol.members.get(ts.escapeLeadingUnderscores(name));
-    return tsSymbol == null ? undefined : this.#context.compilerFactory.getSymbol(tsSymbol);
+    const symbol = this.compilerSymbol.getMembers().get(ts.escapeLeadingUnderscores(name));
+    return symbol == null ? undefined : this.#context.compilerFactory.getSymbol(symbol);
   }
 
   /**
    * Gets the members of the symbol
    */
   getMembers(): Symbol[] {
-    if (this.compilerSymbol.members == null)
-      return [];
-    return Array.from(this.compilerSymbol.members.values()).map(symbol => this.#context.compilerFactory.getSymbol(symbol));
+    return Array.from(this.compilerSymbol.getMembers().values()).map(symbol => this.#context.compilerFactory.getSymbol(symbol));
   }
 
   /**

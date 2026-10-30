@@ -1,4 +1,4 @@
-import { CompilerOptions, FileSystemHost, InMemoryFileSystemHost, RealFileSystemHost, SyntaxKind, ts } from "@ts-morph/common";
+import { CompilerOptions, FileSystemHost, getLibFiles, InMemoryFileSystemHost, RealFileSystemHost, SyntaxKind, ts } from "@ts-morph/common";
 import { IsAny } from "conditional-type-checks";
 import * as path from "path";
 import { Node, SourceFile } from "../../../compiler";
@@ -6,27 +6,10 @@ import { Project } from "../../../Project";
 const fileSystem = new RealFileSystemHost();
 
 function getTextForLibFile(fileName: string) {
-  return {
-    filePath: path.join("node_modules/typescript/lib", fileName),
-    text: fileSystem.readFileSync(path.join(getCompilerLibFolder(ts.version), fileName)),
-  };
-}
-
-const versionLibFolder = new Map<string, string>();
-function getCompilerLibFolder(version: string) {
-  if (!versionLibFolder.has(version))
-    versionLibFolder.set(version, getFolder());
-
-  return versionLibFolder.get(version)!;
-
-  function getFolder() {
-    const basePath = path.join(__dirname, `../../../../../common/node_modules/`);
-    const versionPath = path.join(basePath, `typescript-${version}/lib`);
-    if (fileSystem.directoryExistsSync(versionPath))
-      return versionPath;
-    else
-      return path.join(basePath, `typescript/lib`);
-  }
+  const file = getLibFiles().find(file => file.fileName === fileName);
+  if (file == null)
+    throw new Error(`Native compiler library not found: ${fileName}`);
+  return { filePath: path.join("node_modules/typescript/lib", fileName), text: file.text };
 }
 
 export interface GetInfoFromTextOptions {

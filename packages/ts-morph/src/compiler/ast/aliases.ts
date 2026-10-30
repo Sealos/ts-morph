@@ -89,7 +89,7 @@ type _BindingPatternTest = AssertTrue<IsExact<WrappedToCompilerNodeType<BindingP
 export type BooleanLiteral = TrueLiteral | FalseLiteral;
 type _BooleanLiteralTest = AssertTrue<IsExact<WrappedToCompilerNodeType<BooleanLiteral>, ts.BooleanLiteral>>;
 
-export type CallLikeExpression = CallExpression | NewExpression | TaggedTemplateExpression | Decorator | JsxCallLike | InstanceofExpression;
+export type CallLikeExpression = CallExpression | NewExpression | TaggedTemplateExpression | Decorator | JsxOpeningLikeElement | BinaryExpression;
 type _CallLikeExpressionTest = AssertTrue<IsExact<WrappedToCompilerNodeType<CallLikeExpression>, ts.CallLikeExpression>>;
 
 export type EntityNameExpression = Identifier | PropertyAccessExpression;
@@ -99,8 +99,6 @@ type MapPropAccessEntityNameExpr<T> = T extends ts.PropertyAccessEntityNameExpre
 
 export type DeclarationName =
   | PropertyName
-  | JsxAttributeName
-  | StringLiteralLike
   | ElementAccessExpression
   | BindingPattern
   | EntityNameExpression;

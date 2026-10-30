@@ -9,7 +9,7 @@ describe("tests for issue #1164", () => {
 
     expect(project.getSourceFiles().length).to.equal(1);
     sourceFile.addInterface({ name: "FooBar" });
-    i.getSymbol();
+    expect(() => i.getSymbol()).to.throw("stale");
     expect(project.getSourceFiles().length).to.equal(1); // was 0 before this was fixed
   });
 });

@@ -36,21 +36,21 @@ describe("TsConfigResolver", () => {
 
     it("should get the compiler options plus the defaults when providing some", () => {
       const host = new InMemoryFileSystemHost();
-      host.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES5" } }`);
-      expect(getCompilerOptions(host)).to.deep.equal({ rootDir: "/test", target: 1, configFilePath: "/tsconfig.json" });
+      host.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" } }`);
+      expect(getCompilerOptions(host)).to.deep.equal({ rootDir: "/test", target: 2, configFilePath: "/tsconfig.json" });
     });
 
     it("should return an undefined target when it specifies something else", () => {
       const host = new InMemoryFileSystemHost();
       host.writeFileSync("tsconfig.json", `{ "compilerOptions": { "target": "FUN" } }`);
-      expect(getCompilerOptions(host)).to.deep.equal({ target: undefined, configFilePath: "/tsconfig.json" });
+      expect(getCompilerOptions(host)).to.deep.equal({ configFilePath: "/tsconfig.json" });
     });
 
     it("should get compiler options when using extends", () => {
       const fs = new InMemoryFileSystemHost();
-      fs.writeFileSync("tsconfig.json", `{ "compilerOptions": { "target": "es5" }, "extends": "./base" }`);
+      fs.writeFileSync("tsconfig.json", `{ "compilerOptions": { "target": "es2015" }, "extends": "./base" }`);
       fs.writeFileSync("base.json", `{ "compilerOptions": { "rootDir": "/test" } }`);
-      expect(getCompilerOptions(fs)).to.deep.equal({ rootDir: "/test", target: 1, configFilePath: "/tsconfig.json" });
+      expect(getCompilerOptions(fs)).to.deep.equal({ rootDir: "/test", target: 2, configFilePath: "/tsconfig.json" });
     });
   });
 
@@ -61,7 +61,7 @@ describe("TsConfigResolver", () => {
 
     it("should get no errors when there are none", () => {
       const host = new InMemoryFileSystemHost();
-      host.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES5" } }`);
+      host.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" } }`);
       host.writeFileSync("main.ts", "");
       expect(getErrors(host)).to.deep.equal([]);
     });
@@ -88,7 +88,7 @@ describe("TsConfigResolver", () => {
 
     it("should get the file paths when there are none", () => {
       const fs = new InMemoryFileSystemHost();
-      fs.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES5" } }`);
+      fs.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" } }`);
       doTest(fs, {
         files: [],
         dirs: ["/"],

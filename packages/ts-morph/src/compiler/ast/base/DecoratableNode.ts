@@ -138,7 +138,7 @@ export function DecoratableNode<T extends Constructor<DecoratableNodeExtensionTy
 }
 
 function getCompilerNodeDecorators(node: ts.Node): readonly ts.Decorator[] {
-  return ts.canHaveDecorators(node) ? ts.getDecorators(node) ?? [] : [];
+  return ("modifiers" in node ? node.modifiers as readonly ts.ModifierLike[] : [])?.filter(ts.isDecorator) ?? [];
 }
 
 function getDecoratorLines(node: Node, structures: ReadonlyArray<OptionalKind<DecoratorStructure>>) {

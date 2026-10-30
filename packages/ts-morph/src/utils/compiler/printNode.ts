@@ -52,50 +52,24 @@ export function printNode(node: ts.Node, sourceFile: ts.SourceFile, options?: Pr
 export function printNode(node: ts.Node, sourceFileOrOptions?: PrintNodeOptions | ts.SourceFile, secondOverloadOptions?: PrintNodeOptions) {
   const isFirstOverload = sourceFileOrOptions == null || (sourceFileOrOptions as ts.SourceFile).kind !== SyntaxKind.SourceFile;
   const options = getOptions();
-  const sourceFile = getSourceFile();
-
-  const printer = ts.createPrinter({
-    newLine: options.newLineKind ?? NewLineKind.LineFeed,
-    removeComments: options.removeComments || false,
-  });
-
-  if (sourceFile == null)
-    return printer.printFile(node as ts.SourceFile);
-  else
-    return printer.printNode(options.emitHint ?? EmitHint.Unspecified, node, sourceFile);
-
-  function getSourceFile() {
-    if (isFirstOverload) {
-      if (node.kind === SyntaxKind.SourceFile)
-        return undefined;
-      const topParent = getNodeSourceFile();
-      if (topParent == null) {
-        // create a result file (see https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API)
-        const scriptKind = getScriptKind();
-        return ts.createSourceFile(`print.${getFileExt(scriptKind)}`, "", ScriptTarget.Latest, false, scriptKind);
-      }
-      return topParent;
+  using api = new ts.API();
+  let text = node.kind === SyntaxKind.SourceFile
+    ? api.printer.printFile(node as ts.SourceFile)
+    : ts.isStatement(node) && !isFirstOverload
+    ? api.printer.printFile(ts.factory.updateSourceFile(sourceFileOrOptions as ts.SourceFile, [node], (sourceFileOrOptions as ts.SourceFile).endOfFileToken))
+      .replace(/\r?\n$/, "")
+    : api.printer.printNode(node);
+  if (options.removeComments) {
+    const scanner = ts.createScanner(false, undefined, text);
+    const ranges: [number, number][] = [];
+    for (let kind = scanner.scan(); kind !== SyntaxKind.EndOfFile; kind = scanner.scan()) {
+      if (kind === SyntaxKind.SingleLineCommentTrivia || kind === SyntaxKind.MultiLineCommentTrivia)
+        ranges.push([scanner.getTokenStart(), scanner.getTokenEnd()]);
     }
-
-    return sourceFileOrOptions as ts.SourceFile;
-
-    function getScriptKind() {
-      return options.scriptKind ?? ScriptKind.TSX;
-    }
-
-    function getFileExt(scriptKind: ScriptKind) {
-      if (scriptKind === ScriptKind.JSX || scriptKind === ScriptKind.TSX)
-        return "tsx";
-      return "ts";
-    }
+    for (const [start, end] of ranges.reverse())
+      text = text.slice(0, start) + text.slice(end);
   }
-
-  function getNodeSourceFile() {
-    let topNode: ts.Node | undefined = node.parent;
-    while (topNode != null && topNode.parent != null)
-      topNode = topNode.parent;
-    return topNode as ts.SourceFile;
-  }
+  return text.replace(/\r?\n/g, options.newLineKind === NewLineKind.CRLF ? "\r\n" : "\n");
 
   function getOptions() {
     return (isFirstOverload ? sourceFileOrOptions as PrintNodeOptions : secondOverloadOptions) || {};

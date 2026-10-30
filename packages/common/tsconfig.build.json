@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "paths": {},
+    "declaration": true,
+    "declarationDir": "./dist-declarations",
+    "outDir": "./dist-cg",
+    "types": [
+      "node"
+    ]
+  },
+  "exclude": [
+    "src/tests"
+  ]
+}

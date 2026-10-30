@@ -6,25 +6,20 @@
   "author": "David Sherret",
   "license": "MIT",
   "repository": "git+https://github.com/dsherret/ts-morph.git",
-  "types": "lib/ts-morph-common.d.ts",
+  "types": "dist-declarations/index.d.ts",
   "scripts": {
-    "build": "deno task build:declarations && deno task build:node",
-    "build:node": "rimraf dist && deno task createLibFile && deno task rollup && deno run -A scripts/bundleLocalTs.ts",
-    "build:deno": "rimraf ../../deno/common && rimraf dist-deno && deno task rollup --environment BUILD:deno && deno task build:declarations && deno run -A scripts/buildDeno.ts",
-    "build:declarations": "deno run -A scripts/buildDeclarations.ts",
-    "createLibFile": "deno run -A scripts/createLibFile.ts",
-    "test": "deno run -A npm:mocha",
-    "test:ci": "deno task test",
-    "test:debug": "deno task test --inspect-brk",
-    "rollup": "rollup --config"
+    "build": "rimraf dist-cg dist dist-declarations && tsc -p tsconfig.build.json && rollup -c",
+    "build:declarations": "tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "type-check": "tsc -p tsconfig.json --rootDir ../.. --noEmit",
+    "test": "node --import tsx ../../node_modules/mocha/bin/mocha.js --require ../scripts/nativeCompilerCleanup.cjs",
+    "test:ci": "npm test"
   },
   "dependencies": {
     "minimatch": "^10.0.1",
-    "path-browserify": "^1.0.1",
-    "tinyglobby": "^0.2.14"
+    "tinyglobby": "^0.2.14",
+    "typescript": "7.1.0-beta"
   },
   "devDependencies": {
-    "@rollup/plugin-typescript": "^12.1.2",
     "@types/chai": "^5.2.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.14.1",
@@ -33,33 +28,18 @@
     "mocha": "^11.1.0",
     "rimraf": "^6.0.1",
     "rollup": "=4.40.0",
-    "ts-node": "^10.9.2",
-    "tslib": "^2.8.1",
-    "typescript": "6.0.2"
+    "tslib": "^2.8.1"
   },
   "publishConfig": {
     "access": "public"
   },
-  "browser": {
-    "fs": false,
-    "node:fs": false,
-    "fs/promises": false,
-    "node:fs/promises": false,
-    "os": false,
-    "node:os": false,
-    "fs.realpath": false,
-    "mkdirp": false,
-    "dir-glob": false,
-    "graceful-fs": false,
-    "tinyglobby": false,
-    "source-map-support": false,
-    "glob-parent": false,
-    "glob": false,
-    "path": false,
-    "node:path": false,
-    "crypto": false,
-    "buffer": false,
-    "@microsoft/typescript-etw": false,
-    "inspector": false
-  }
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "dist",
+    "dist-declarations",
+    "readme.md",
+    "LICENSE"
+  ]
 }

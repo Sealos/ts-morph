@@ -73,40 +73,19 @@ These are good to always check when emitting to ensure everything went smoothly.
 
 ### Emitting with custom transformations
 
-You can emit using the compiler API's custom transformations by specifying them on the `customTransformers` option.
-
-The following example will emit the code with all numeric literals change to string literals:
+TypeScript 7.1 does not expose emit-time `customTransformers`. Transform the source before emitting:
 
 ```ts
-project.emit({
-  customTransformers: {
-    // optional transformers to evaluate before built in .js transformations
-    before: [context => sourceFile => visitSourceFile(sourceFile, context, numericLiteralToStringLiteral)],
-    // optional transformers to evaluate after built in .js transformations
-    after: [],
-    // optional transformers to evaluate after built in .d.ts transformations
-    afterDeclarations: [],
-  },
+sourceFile.transform(traversal => {
+  const node = traversal.visitChildren();
+  return ts.isNumericLiteral(node)
+    ? traversal.factory.createStringLiteral(node.text, ts.TokenFlags.None)
+    : node;
 });
-
-function visitSourceFile(
-  sourceFile: ts.SourceFile,
-  context: ts.TransformationContext,
-  visitNode: (node: ts.Node, context: ts.TransformationContext) => ts.Node,
-) {
-  return visitNodeAndChildren(sourceFile) as ts.SourceFile;
-
-  function visitNodeAndChildren(node: ts.Node): ts.Node {
-    return ts.visitEachChild(visitNode(node, context), visitNodeAndChildren, context);
-  }
-}
-
-function numericLiteralToStringLiteral(node: ts.Node, context: ts.TransformationContext) {
-  if (ts.isNumericLiteral(node))
-    return context.factory.createStringLiteral(node.text);
-  return node;
-}
+await project.emit();
 ```
+
+This changes the source file in the project. Reacquire types, symbols, and signatures after the edit.
 
 ## Emitting to Memory
 

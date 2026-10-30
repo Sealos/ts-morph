@@ -1,4 +1,4 @@
-import * as ts from "typescript";
+import * as ts from "./ts7";
 // flattened typescript exports
 import {
   type CompilerOptions,
@@ -18,7 +18,7 @@ import {
   SyntaxKind,
   TypeFlags,
   TypeFormatFlags,
-} from "typescript";
+} from "./ts7";
 export {
   type CompilerOptions,
   DiagnosticCategory,

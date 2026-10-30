@@ -299,7 +299,7 @@ function* getNodes(container: ContainerNodes, sourceFile: ts.SourceFile): Iterab
     function getCtor() {
       if (isStatementContainerNode(container))
         return CompilerCommentStatement;
-      if (ts.isClassLike(container))
+      if ((ts.isClassDeclaration(container) || ts.isClassExpression(container)))
         return CompilerCommentClassElement;
       if (ts.isInterfaceDeclaration(container) || ts.isTypeLiteralNode(container))
         return CompilerCommentTypeElement;

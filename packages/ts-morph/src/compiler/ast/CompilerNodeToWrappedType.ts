@@ -18,7 +18,7 @@ export type CompilerNodeToWrappedType<T extends ts.Node> = T extends ts.ObjectDe
   : T extends ts.SyntaxList ? compiler.SyntaxList
   : T extends ts.JSDocTypeExpression ? compiler.JSDocTypeExpression
   : T extends ts.JSDocType ? compiler.JSDocType
-  : T extends ts.NodeWithTypeArguments ? compiler.NodeWithTypeArguments
+  : T extends ("typeArguments" extends keyof T ? ts.NodeWithTypeArguments : never) ? compiler.NodeWithTypeArguments
   : T extends ts.TypeNode ? compiler.TypeNode
   : T extends ts.JSDocTag ? compiler.JSDocTag
   : T extends ts.LiteralExpression ? compiler.LiteralExpression

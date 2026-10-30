@@ -83,7 +83,7 @@ const code = printStructure({
 
 Outputs:
 
-```ts
+```ts ignore-error: 2564
 export class MyClass {
   myProp: string;
 
@@ -99,6 +99,9 @@ Mostly any structure with a `kind` property can be printed, including `SourceFil
 Formatting can be customized with an optional second argument:
 
 ```ts
+import { printStructure, StructureKind } from "ts-morph";
+
+const structure = { kind: StructureKind.Interface, name: "Example" } as const;
 const code = printStructure(structure, {
   indentNumberOfSpaces: 2,
   useTabs: false,

@@ -7,7 +7,7 @@ export interface CreateDeclarationProjectOptions {
 }
 
 export function createDeclarationProject(opts: CreateDeclarationProjectOptions) {
-  const project = new Project({
+  using project = new Project({
     tsConfigFilePath: opts.tsConfigFilePath,
     manipulationSettings: {
       indentationText: IndentationText.TwoSpaces,
@@ -22,7 +22,7 @@ export function createDeclarationProject(opts: CreateDeclarationProjectOptions) 
 
   if (emitResult.getDiagnostics().length > 0) {
     printDiagnostics(emitResult.getDiagnostics());
-    Deno.exit(1);
+    throw new Error("Declaration generation failed.");
   }
 
   const declarationProject = new Project({
@@ -40,7 +40,8 @@ export function createDeclarationProject(opts: CreateDeclarationProjectOptions) 
   const declDiagnostics = declarationProject.getPreEmitDiagnostics();
   if (declDiagnostics.length > 0) {
     console.log(declarationProject.formatDiagnosticsWithColorAndContext(declDiagnostics));
-    Deno.exit(1);
+    declarationProject.dispose();
+    throw new Error("Generated declarations contain compiler errors.");
   }
 
   return declarationProject;

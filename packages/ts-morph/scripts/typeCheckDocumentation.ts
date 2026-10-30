@@ -24,7 +24,8 @@ const errorCodesToIgnore = [
   errorCodes.FileNotUnderRootDir,
   errorCodes.TopLevelAwait,
 ];
-const project = getProject();
+using project = getProject();
+project.compilerOptions.set({ module: tsMorph.ModuleKind.Preserve, moduleResolution: tsMorph.ModuleResolutionKind.Bundler });
 const docsDir = project.addDirectoryAtPath("../../docs");
 const fileSystem = project.getFileSystem();
 const templatesDir = docsDir.addDirectoryAtPath("_script-templates");
@@ -73,7 +74,7 @@ if (errors.length > 0) {
     );
   }
 
-  Deno.exit(1);
+  process.exitCode = 1;
 }
 
 function getInitializedSetupText(text: string) {

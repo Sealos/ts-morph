@@ -49,7 +49,7 @@ const firstProperty = classDec.getProperties()[0];
 ```
 
 **Note:** This is a lightweight way to navigate a node, but there are certian functionalities which will throw an error since there is no
-language service, type checker, or program. For example, finding references will not work because that requires a language service.
+language service, type checker, or program. Finding references requires a language service. Parsing and transforming source requires an owning `Project`. Keep the native source-file lease alive while navigating a borrowed AST.
 
 ### Providing Type Checker
 
@@ -77,6 +77,6 @@ import { ts } from "ts-morph";
 import * as ts from "typescript";
 ```
 
-They're almost identical and the `ts` named export from ts-morph should serve your needs.
+The `ts` export exposes the native AST and synchronous API entry points. The root `typescript` package exports version metadata; its programmatic APIs live in separate entry points such as `typescript/sync` and `typescript/ast`.
 
 There's lots of reasons why this is done and it's outlined in [#333](https://github.com/dsherret/ts-morph/issues/333#issuecomment-391182952).

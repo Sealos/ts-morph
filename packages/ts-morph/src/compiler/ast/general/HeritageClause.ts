@@ -1,4 +1,4 @@
-import { ts } from "@ts-morph/common";
+import { errors, ts } from "@ts-morph/common";
 import { removeChildren, removeCommaSeparatedChild, verifyAndGetIndex } from "../../../manipulation";
 import { Node } from "../common";
 import { ExpressionWithTypeArguments } from "../type";
@@ -8,7 +8,12 @@ export class HeritageClause extends Node<ts.HeritageClause> {
    * Gets all the type nodes for the heritage clause.
    */
   getTypeNodes(): ExpressionWithTypeArguments[] {
-    return this.compilerNode.types?.map(t => this._getNodeFromCompilerNode(t)) ?? [];
+    return this.compilerNode.types.map(t => {
+      const node = this._getNodeFromCompilerNode(t);
+      if (!(node instanceof ExpressionWithTypeArguments))
+        throw new errors.InvalidOperationError("Expected a heritage element wrapper.");
+      return node;
+    });
   }
 
   /**

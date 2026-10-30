@@ -4,10 +4,10 @@ import { newLineKindToString } from "../../utils";
 
 describe("newLineKindToString", () => {
   it("should return carriage return line feed for like", () => {
-    expect(newLineKindToString(NewLineKind.CarriageReturnLineFeed)).to.equal("\r\n");
+    expect(newLineKindToString(NewLineKind.CRLF)).to.equal("\r\n");
   });
 
   it("should return line feed for like", () => {
-    expect(newLineKindToString(NewLineKind.LineFeed)).to.equal("\n");
+    expect(newLineKindToString(NewLineKind.LF)).to.equal("\n");
   });
 });

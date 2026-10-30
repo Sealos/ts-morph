@@ -1,7 +1,8 @@
 import { errors } from "../errors";
 import { StandardizedFilePath, TransactionalFileSystem } from "../fileSystem";
 import { ts } from "../typescript";
-import { createCompilerSourceFile } from "./createCompilerSourceFile";
+import { NativeCompilerSession } from "../typescript/NativeCompilerSession";
+import { createNativeCompilerFileSystem } from "./createNativeCompilerFileSystem";
 
 /**
  * An implementation of a ts.DocumentRegistry that uses a transactional file system.
@@ -9,6 +10,9 @@ import { createCompilerSourceFile } from "./createCompilerSourceFile";
 export class DocumentRegistry implements ts.DocumentRegistry {
   readonly #sourceFileCacheByFilePath = new Map<StandardizedFilePath, ts.SourceFile>();
   readonly #transactionalFileSystem: TransactionalFileSystem;
+  readonly #versions = new WeakMap<ts.SourceFile, string>();
+  /** @internal */
+  readonly nativeSession: NativeCompilerSession;
   static readonly #initialVersion = "0";
 
   /**
@@ -17,6 +21,7 @@ export class DocumentRegistry implements ts.DocumentRegistry {
    */
   constructor(transactionalFileSystem: TransactionalFileSystem) {
     this.#transactionalFileSystem = transactionalFileSystem;
+    this.nativeSession = new NativeCompilerSession(createNativeCompilerFileSystem(transactionalFileSystem));
   }
 
   /**
@@ -46,6 +51,7 @@ export class DocumentRegistry implements ts.DocumentRegistry {
    */
   removeSourceFile(fileName: StandardizedFilePath) {
     this.#sourceFileCacheByFilePath.delete(fileName);
+    this.nativeSession.remove(fileName);
   }
 
   /** @inheritdoc */
@@ -123,7 +129,7 @@ export class DocumentRegistry implements ts.DocumentRegistry {
 
   /** @inheritdoc */
   getSourceFileVersion(sourceFile: ts.SourceFile): string {
-    return (sourceFile as any).version || "0";
+    return this.#versions.get(sourceFile) ?? "0";
   }
 
   #getNextSourceFileVersion(sourceFile: ts.SourceFile) {
@@ -138,8 +144,18 @@ export class DocumentRegistry implements ts.DocumentRegistry {
     version: string,
     scriptKind: ts.ScriptKind | undefined,
   ): ts.SourceFile {
-    const newSourceFile = createCompilerSourceFile(fileName, scriptSnapshot, compilationSettings.target, version, true, scriptKind);
+    const newSourceFile = this.nativeSession.parse(fileName, scriptSnapshot.getText(0, scriptSnapshot.getLength()), scriptKind);
+    this.#versions.set(newSourceFile, version);
     this.#sourceFileCacheByFilePath.set(fileName, newSourceFile);
     return newSourceFile;
+  }
+
+  dispose() {
+    this.#sourceFileCacheByFilePath.clear();
+    this.nativeSession.dispose();
+  }
+
+  [Symbol.dispose]() {
+    this.dispose();
   }
 }

@@ -8,7 +8,7 @@ export function getDeclarationProject() {
     },
     skipAddingFilesFromTsConfig: true,
   });
-  project.addSourceFilesAtPaths(path.join(folders.tsMorph, "lib/**/*.d.ts"));
+  project.addSourceFilesAtPaths(path.join(folders.tsMorph, "dist-declarations/**/*.d.ts"));
   return project;
 }
 

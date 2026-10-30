@@ -1,16 +1,16 @@
 # Prerequisites
 
-This project requires [Deno](https://docs.deno.com/runtime/manual/getting_started/installation)
+This project requires Node.js 22.12 or newer and npm. It uses the native TypeScript 7.1 compiler.
 
 # Getting Started
 
-Install [deno](https://deno.com).
+Install Node.js 22.12 or newer.
 
 Run in root of repo:
 
 ```bash
 # installs, sets up, and builds all the packages for development
-deno task setup
+npm run setup
 ```
 
 # Packages
@@ -24,9 +24,11 @@ deno task setup
 
 ```bash
 # build (run in root dir or per package)
-deno task build
+npm run build
 # run tests (run in root dir or per package)
-deno task --recursive test
+npm test
 # format
-deno task format
+npm run format
 ```
+
+Run `npm run type-check` to check all packages. See [the migration guide](docs/typescript-7.1.md) for native resource ownership and API changes.

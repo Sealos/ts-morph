@@ -1,4 +1,4 @@
-import { createHosts, EditorSettings, errors, ObjectUtils, ResolutionHost, ts } from "@ts-morph/common";
+import { createHosts, createNativeCompilerFileSystem, EditorSettings, errors, ObjectUtils, ResolutionHost, ts } from "@ts-morph/common";
 import { getTextFromTextChanges } from "../../manipulation";
 import { ProjectContext } from "../../ProjectContext";
 import { fillDefaultEditorSettings, fillDefaultFormatCodeSettings } from "../../utils";
@@ -50,6 +50,12 @@ export class LanguageService {
   /** @private */
   constructor(params: LanguageServiceCreationParams) {
     this.#context = params.context;
+    this.#context.compilerFactory.documentRegistry.nativeSession.setFileSystem(
+      createNativeCompilerFileSystem(this.#context.fileSystemWrapper, this.#context.getSourceFileContainer()),
+    );
+    this.#context.compilerFactory.documentRegistry.nativeSession.setResolutionHost(params.resolutionHost);
+    this.#context.compilerFactory.documentRegistry.nativeSession.configureProgramOptions({ configFileParsingDiagnostics: params.configFileParsingDiagnostics });
+    this.#context.compilerFactory.documentRegistry.nativeSession.configureLibraries(params.skipLoadingLibFiles, params.libFolderPath);
 
     const { languageServiceHost, compilerHost } = createHosts({
       transactionalFileSystem: this.#context.fileSystemWrapper,
@@ -79,6 +85,11 @@ export class LanguageService {
         this._reset();
     });
     this.#context.compilerFactory.onSourceFileRemoved(() => this._reset());
+  }
+
+  /** @internal */
+  _dispose() {
+    this.#compilerObject.dispose();
   }
 
   /**
@@ -273,7 +284,7 @@ export class LanguageService {
     function getCompilerEmitOutput(): ts.EmitOutput {
       const program = compilerObject.getProgram();
       if (program == null || program.getSourceFile(filePath) == null)
-        return { emitSkipped: true, outputFiles: [], diagnostics: [] };
+        return { emitSkipped: true, outputFiles: new Map(), diagnostics: [] };
       return compilerObject.getEmitOutput(filePath, emitOnlyDtsFiles);
     }
   }

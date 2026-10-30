@@ -1,3 +1,6 @@
+> This branch targets the native `typescript@7.1.0-beta` API and requires Node.js 22.12 or newer.
+> See [the TypeScript 7.1 migration guide](docs/typescript-7.1.md) for resource ownership and API changes.
+
 # <img src="docs/assets/logo.svg" alt="ts-morph" height="58" />
 
 [![CI](https://github.com/dsherret/ts-morph/workflows/CI/badge.svg)](https://github.com/dsherret/ts-morph/actions?query=workflow%3ACI)

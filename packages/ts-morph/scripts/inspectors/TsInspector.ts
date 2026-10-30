@@ -15,7 +15,17 @@ export class TsInspector {
   getTsSymbol() {
     const tsMorphCommon = this.#project.getSourceFileOrThrow("src/main.ts").getExportDeclarationOrThrow("@ts-morph/common").getModuleSpecifier()!
       .getSymbolOrThrow();
-    return tsMorphCommon.getExportOrThrow("ts").getAliasedSymbolOrThrow();
+    const namespace = this.#project.getTypeChecker().getExportsOfModule(tsMorphCommon).find(symbol => symbol.getName() === "ts");
+    if (namespace == null)
+      throw new Error("Could not resolve the native compiler namespace.");
+    return namespace.getAliasedSymbolOrThrow();
+  }
+
+  getTsExport(name: string) {
+    const symbol = this.#project.getTypeChecker().getExportsOfModule(this.getTsSymbol()).find(symbol => symbol.getName() === name);
+    if (symbol == null)
+      throw new Error(`Native compiler export not found: ${name}`);
+    return symbol;
   }
 
   @Memoize
@@ -23,7 +33,7 @@ export class TsInspector {
     const tsSymbol = this.getTsSymbol();
     const interfaces: tsMorph.InterfaceDeclaration[] = [];
 
-    for (const exportSymbol of tsSymbol.getExports()) {
+    for (const exportSymbol of this.#project.getTypeChecker().getExportsOfModule(tsSymbol)) {
       if (exportSymbol.getName() === "Node")
         continue;
 
@@ -74,15 +84,10 @@ export class TsInspector {
   @Memoize
   getSyntaxKindNamesAndValues() {
     const foundValues = new Set<number>();
-    return this.getTsSymbol().getExportOrThrow("SyntaxKind").getExports().map(e => {
-      const value = (e.getValueDeclarationOrThrow() as tsMorph.EnumMember).getValue() as number;
+    return Object.entries(tsMorph.SyntaxKind).filter((entry): entry is [string, number] => typeof entry[1] === "number").map(([name, value]) => {
       const isAlias = foundValues.has(value);
       foundValues.add(value);
-      return {
-        name: e.getName(),
-        value,
-        isAlias,
-      };
+      return { name, value, isAlias };
     });
   }
 }

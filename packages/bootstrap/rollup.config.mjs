@@ -1,20 +1,18 @@
-import typescript from "@rollup/plugin-typescript";
-const isDeno = process.env.BUILD === "deno";
-const outputFolder = isDeno ? "./dist-deno" : "./dist";
-const moduleKind = isDeno ? "es" : "cjs";
+import { existsSync } from "node:fs";
+import * as path from "node:path";
 
 export default {
-  input: "./src/index.ts",
-  external: [],
-  output: {
-    file: outputFolder + "/ts-morph-bootstrap.js",
-    format: moduleKind,
-    interop: "compat",
-  },
-  plugins: [
-    typescript({
-      tsconfig: "tsconfig.rollup.json",
-      outDir: outputFolder,
-    }),
-  ],
+  input: "./dist-cg/index.js",
+  external: id => !id.startsWith(".") && !id.startsWith("/"),
+  output: { file: "./dist/ts-morph-bootstrap.js", format: "cjs", interop: "compat" },
+  plugins: [{
+    name: "extensionless-imports",
+    resolveId(source, importer) {
+      if (importer == null || !source.startsWith(".")) return null;
+      const file = path.resolve(path.dirname(importer), source);
+      for (const candidate of [file + ".js", path.join(file, "index.js")])
+        if (existsSync(candidate)) return candidate;
+      return null;
+    },
+  }],
 };

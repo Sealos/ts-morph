@@ -26,10 +26,6 @@ export interface EmitOptionsBase {
    * Whether only .d.ts files should be emitted.
    */
   emitOnlyDtsFiles?: boolean;
-  /**
-   * Transformers to act on the files when emitting.
-   */
-  customTransformers?: ts.CustomTransformers;
 }
 
 /** @internal */
@@ -50,8 +46,7 @@ export class Program {
   readonly #typeChecker: TypeChecker;
   /** @internal */
   #createdCompilerObject: ts.Program | undefined;
-  /** @internal */
-  #oldProgram: ts.Program | undefined;
+  #createdEpoch = -1;
   /** @internal */
   #getOrCreateCompilerObject!: () => ts.Program;
   /** @internal */
@@ -77,7 +72,7 @@ export class Program {
    * @internal
    */
   _isCompilerProgramCreated() {
-    return this.#createdCompilerObject != null;
+    return this.#createdCompilerObject != null && this.#createdEpoch === this.#context.compilerFactory.documentRegistry.nativeSession.epoch;
   }
 
   /**
@@ -85,30 +80,23 @@ export class Program {
    * @internal
    */
   _reset(rootNames: ReadonlyArray<string>, host: ts.CompilerHost) {
-    const compilerOptions = this.#context.compilerOptions.get();
+    const session = this.#context.compilerFactory.documentRegistry.nativeSession;
+    session.invalidate();
+    this.#createdCompilerObject = undefined;
     this.#getOrCreateCompilerObject = () => {
-      // need to use ts.createProgram instead of languageService.getProgram() because the
-      // program created by the language service is not fully featured (ex. does not write to the file system)
-      if (this.#createdCompilerObject == null) {
-        this.#createdCompilerObject = ts.createProgram(
-          rootNames,
-          compilerOptions,
-          host,
-          this.#oldProgram,
-          this.#configFileParsingDiagnostics,
-        );
-        this.#oldProgram = undefined;
+      this.#context.assertAlive();
+      if (this.#createdCompilerObject == null || this.#createdEpoch !== session.epoch) {
+        const program = session.getProgram(rootNames, this.#context.compilerOptions.get(), {
+          configFileParsingDiagnostics: this.#configFileParsingDiagnostics,
+        });
+        this.#createdCompilerObject = program;
+        this.#createdEpoch = session.epoch;
+        for (const fileName of program.getSourceFileNames())
+          this.#context.compilerFactory.getSourceFile(program.getSourceFile(fileName)!, { markInProject: false });
       }
-
       return this.#createdCompilerObject;
     };
-
-    if (this.#createdCompilerObject != null) {
-      this.#oldProgram = this.#createdCompilerObject;
-      this.#createdCompilerObject = undefined;
-    }
-
-    this.#typeChecker._reset(() => this.compilerObject.getTypeChecker());
+    this.#typeChecker._reset(() => this.compilerObject.getProject().checker);
   }
 
   /**
@@ -173,10 +161,25 @@ export class Program {
 
   /** @internal */
   #emit(options: ProgramEmitOptions = {}) {
-    const targetSourceFile = options.targetSourceFile != null ? options.targetSourceFile.compilerNode : undefined;
-    const { emitOnlyDtsFiles, customTransformers, writeFile } = options;
-    const cancellationToken = undefined; // todo: expose this
-    return this.compilerObject.emit(targetSourceFile, writeFile, cancellationToken, emitOnlyDtsFiles, customTransformers);
+    if ((options as { customTransformers?: unknown }).customTransformers != null)
+      throw new errors.InvalidOperationError("TypeScript 7.1 does not support emit-time customTransformers. Use Node.transform() before emitting.");
+    if (this.#context.compilerOptions.get().noEmit)
+      return { emitSkipped: true, diagnostics: [], emittedFiles: [] };
+    const { emitOnlyDtsFiles, writeFile } = options;
+    const output = this.compilerObject.emitToString(emitOnlyDtsFiles ? ts.EmitOnly.OnlyDts : ts.EmitOnly.All);
+    const emittedFiles: ts.Path[] = [];
+    for (const [fileName, file] of output.outputFiles) {
+      if (options.targetSourceFile != null && String(file.sourceFileName) !== options.targetSourceFile.getFilePath())
+        continue;
+      const hasBom = file.text.startsWith("\uFEFF");
+      const text = hasBom ? file.text.slice(1) : file.text;
+      if (writeFile != null)
+        writeFile(fileName, text, hasBom);
+      else
+        this.#context.fileSystemWrapper.writeFileSync(this.#context.fileSystemWrapper.getStandardizedAbsolutePath(fileName), file.text);
+      emittedFiles.push(fileName);
+    }
+    return { emitSkipped: output.emitSkipped, diagnostics: output.diagnostics, emittedFiles };
   }
 
   /**
@@ -184,7 +187,7 @@ export class Program {
    * @param sourceFile - Optional source file to filter by.
    */
   getSyntacticDiagnostics(sourceFile?: SourceFile): DiagnosticWithLocation[] {
-    const compilerDiagnostics = this.compilerObject.getSyntacticDiagnostics(sourceFile == null ? undefined : sourceFile.compilerNode);
+    const compilerDiagnostics = this.compilerObject.getSyntacticDiagnostics(sourceFile?.getFilePath());
     return compilerDiagnostics.map(d => this.#context.compilerFactory.getDiagnosticWithLocation(d));
   }
 
@@ -193,7 +196,7 @@ export class Program {
    * @param sourceFile - Optional source file to filter by.
    */
   getSemanticDiagnostics(sourceFile?: SourceFile): Diagnostic[] {
-    const compilerDiagnostics = this.compilerObject.getSemanticDiagnostics(sourceFile?.compilerNode);
+    const compilerDiagnostics = this.compilerObject.getSemanticDiagnostics(sourceFile?.getFilePath());
     return compilerDiagnostics.map(d => this.#context.compilerFactory.getDiagnostic(d));
   }
 
@@ -202,7 +205,7 @@ export class Program {
    * @param sourceFile - Optional source file to filter by.
    */
   getDeclarationDiagnostics(sourceFile?: SourceFile): DiagnosticWithLocation[] {
-    const compilerDiagnostics = this.compilerObject.getDeclarationDiagnostics(sourceFile?.compilerNode);
+    const compilerDiagnostics = this.compilerObject.getDeclarationDiagnostics(sourceFile?.getFilePath());
     return compilerDiagnostics.map(d => this.#context.compilerFactory.getDiagnosticWithLocation(d));
   }
 
@@ -218,7 +221,7 @@ export class Program {
    * Gets the diagnostics found when parsing the tsconfig.json file.
    */
   getConfigFileParsingDiagnostics(): Diagnostic[] {
-    const compilerDiagnostics = this.compilerObject.getConfigFileParsingDiagnostics();
+    const compilerDiagnostics = this.#configFileParsingDiagnostics;
     return compilerDiagnostics.map(d => this.#context.compilerFactory.getDiagnostic(d));
   }
 
@@ -226,7 +229,7 @@ export class Program {
    * Gets the emit module resolution kind.
    */
   getEmitModuleResolutionKind(): ModuleResolutionKind {
-    return getEmitModuleResolutionKind(this.compilerObject.getCompilerOptions());
+    return getEmitModuleResolutionKind(this.#context.compilerOptions.get());
   }
 
   /**

@@ -1,6 +1,8 @@
 import { getLibFiles, InMemoryFileSystemHost, nameof, ts } from "@ts-morph/common";
 import { expect } from "chai";
 import { EOL } from "node:os";
+import { getNativeLibDirectory } from "../../../common/src/typescript/getNativeLibDirectory";
+import { createCompilerSourceFile } from "../../../scripts/nativeTestHelpers";
 import { createProject, createProjectSync, Project, ProjectOptions } from "../Project";
 
 describe("Project", () => {
@@ -11,7 +13,7 @@ describe("Project", () => {
     function doTestsForProject(create: (options: ProjectOptions) => Promise<Project>) {
       it("should add the files from tsconfig.json by default with the target in the tsconfig.json", async () => {
         const fileSystem = new InMemoryFileSystemHost();
-        fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES5" }, "include": ["test"] }`);
+        fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" }, "include": ["test"] }`);
         fileSystem.writeFileSync("/otherFile.ts", "");
         fileSystem.writeFileSync("/test/file.ts", "");
         fileSystem.writeFileSync("/test/test2/file2.ts", "");
@@ -21,12 +23,15 @@ describe("Project", () => {
           skipLoadingLibFiles: true,
         });
         expect(project.getSourceFiles().map(s => s.fileName).sort()).to.deep.equal(["/test/file.ts", "/test/test2/file2.ts"].sort());
-        expect(project.getSourceFiles().map(s => s.languageVersion)).to.deep.equal([ts.ScriptTarget.ES5, ts.ScriptTarget.ES5]);
+        expect(project.getSourceFiles().map(() => project.compilerOptions.get().target ?? ts.ScriptTarget.Latest)).to.deep.equal([
+          ts.ScriptTarget.ES2015,
+          ts.ScriptTarget.ES2015,
+        ]);
       });
 
       it("should add the files from tsconfig.json by default and also take into account the passed in compiler options", async () => {
         const fileSystem = new InMemoryFileSystemHost();
-        fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "target": "ES5" } }`);
+        fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "target": "ES2015" } }`);
         fileSystem.writeFileSync("/otherFile.ts", "");
         fileSystem.writeFileSync("/test/file.ts", "");
         fileSystem.writeFileSync("/test/test2/file2.ts", "");
@@ -41,7 +46,7 @@ describe("Project", () => {
 
       it("should not add the files from tsconfig.json when specifying not to", async () => {
         const fileSystem = new InMemoryFileSystemHost();
-        fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES5" } }`);
+        fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" } }`);
         fileSystem.writeFileSync("/test/file.ts", "");
         fileSystem.writeFileSync("/test/test2/file2.ts", "");
         const project = await create({
@@ -136,7 +141,7 @@ describe("Project", () => {
 
           const testFile = project.createSourceFile("/Test.ts", "export class Test {}");
           const mainFile = project.createSourceFile("/main.ts", `import { Test } from "./Test.ts";\n\nconst test = new Test();`);
-          return { testFile, mainFile, typeChecker: project.createProgram().getTypeChecker(), languageService: project.getLanguageService() };
+          return { testFile, mainFile, typeChecker: project.createProgram().getProject().checker, languageService: project.getLanguageService() };
         }
 
         it("should resolve the module", async () => {
@@ -144,7 +149,7 @@ describe("Project", () => {
           const moduleSpecifier = (mainFile.statements[0] as ts.ImportDeclaration).moduleSpecifier;
           const symbol = typeChecker.getSymbolAtLocation(moduleSpecifier);
           expect(symbol).to.not.be.undefined;
-          expect(symbol!.getName()).to.equal(`"/Test"`);
+          expect(symbol!.name).to.equal(`"/Test"`);
         });
 
         it("should support when renaming with the language service", async () => {
@@ -155,6 +160,7 @@ describe("Project", () => {
             (testFile.statements[0] as ts.ClassDeclaration).name!.getStart(),
             false,
             false,
+            true,
           );
           expect(results!.map(r => r.fileName).sort()).to.deep.equal([
             "/Test.ts",
@@ -164,66 +170,15 @@ describe("Project", () => {
         });
       });
 
-      describe("custom type reference directive resolution", async () => {
-        async function setup() {
-          const fileSystem = new InMemoryFileSystemHost();
-          const testFilePath = "/other/test.d.ts";
-          fileSystem.writeFileSync("/dir/tsconfig.json", `{ "compilerOptions": { "target": "ES5" } }`);
-          fileSystem.writeFileSync("/dir/main.ts", `/// <reference types="../other/testasdf" />\n\nconst test = new Test();`);
-          fileSystem.writeFileSync(testFilePath, `declare class Test {}`);
-          fileSystem.getCurrentDirectory = () => "/dir";
-          const project = await create({
-            fileSystem,
-            resolutionHost: (moduleResolutionHost, getCompilerOptions) => {
-              return {
-                resolveTypeReferenceDirectives: (typeDirectiveNames: string[] | ts.FileReference[], containingFile: string) => {
-                  const compilerOptions = getCompilerOptions();
-                  const resolvedTypeReferenceDirectives: ts.ResolvedTypeReferenceDirective[] = [];
-
-                  for (const typeDirectiveName of typeDirectiveNames.map(replaceAsdfExtension)) {
-                    const result = ts.resolveTypeReferenceDirective(typeDirectiveName, containingFile, compilerOptions, moduleResolutionHost);
-                    if (result.resolvedTypeReferenceDirective)
-                      resolvedTypeReferenceDirectives.push(result.resolvedTypeReferenceDirective);
-                  }
-
-                  return resolvedTypeReferenceDirectives;
-                },
-              };
-
-              function replaceAsdfExtension(moduleName: string | ts.FileReference) {
-                moduleName = typeof moduleName === "string" ? moduleName : moduleName.fileName;
-                return moduleName.replace("asdf", "");
-              }
-            },
-            tsConfigFilePath: "/dir/tsconfig.json",
-          });
-
-          const mainFile = project.getSourceFileOrThrow("main.ts");
-          const initializer = (mainFile.statements[0] as ts.VariableStatement).declarationList.declarations[0].initializer as ts.NewExpression;
-          const testIdentifier = initializer.expression as ts.Identifier;
-          return { project, mainFile, testFilePath, testIdentifier };
+      it("rejects custom type-reference resolution hooks", async () => {
+        let failure: unknown;
+        try {
+          await create({ useInMemoryFileSystem: true, resolutionHost: () => ({ resolveTypeReferenceDirectives: () => [] }) });
+        } catch (error) {
+          failure = error;
         }
-
-        it("should support custom resolution", async () => {
-          const { project, testIdentifier, mainFile, testFilePath } = await setup();
-          const languageService = project.getLanguageService();
-          const result = languageService.getDefinitionAtPosition(mainFile.fileName, testIdentifier.getStart(mainFile))!;
-          expect(result.length).to.equal(1);
-          expect(result[0].fileName).to.equal(testFilePath);
-        });
-
-        it("should support when renaming with the language service", async () => {
-          // todo: this should be investigated in the future as this test doesn't fail when the custom type reference directive resolution
-          // is not provided to the language service.
-          const { testIdentifier, mainFile, project, testFilePath } = await setup();
-          const languageService = project.getLanguageService();
-          const result = languageService.findRenameLocations(mainFile.fileName, testIdentifier.getStart(mainFile), false, false)!;
-          expect(result.length).to.equal(2);
-          expect(result.map(r => r.fileName).sort()).to.deep.equal([
-            mainFile.fileName,
-            testFilePath,
-          ]);
-        });
+        expect(failure).to.be.instanceOf(Error);
+        expect((failure as Error).message).to.contain("custom type-reference resolution");
       });
 
       describe(nameof<ProjectOptions>("skipLoadingLibFiles"), () => {
@@ -233,20 +188,20 @@ describe("Project", () => {
           const program = project.createProgram();
           expect(ts.getPreEmitDiagnostics(program).length).to.equal(0);
 
-          const typeChecker = program.getTypeChecker();
+          const typeChecker = program.getProject().checker;
           const varDecl = (sourceFile.statements[0] as ts.VariableStatement).declarationList.declarations[0];
           const varDeclType = typeChecker.getTypeAtLocation(varDecl.type!);
           const stringDec = varDeclType.getSymbol()!.declarations![0];
-          expect(stringDec.getSourceFile().fileName).to.equal("/node_modules/typescript/lib/lib.es5.d.ts");
+          expect(stringDec.resolve()!.getSourceFile().fileName).to.equal(getNativeLibDirectory().replace(/\\/g, "/") + "/lib.es5.d.ts");
         });
 
         it("should skip loading lib files when true", async () => {
           const project = await create({ useInMemoryFileSystem: true, skipLoadingLibFiles: true });
           const sourceFile = project.createSourceFile("test.ts", "const t: String = '';");
           const program = project.createProgram();
-          expect(ts.getPreEmitDiagnostics(program).length).to.equal(12);
+          expect(ts.getPreEmitDiagnostics(program).length).to.equal(11);
 
-          const typeChecker = program.getTypeChecker();
+          const typeChecker = program.getProject().checker;
           const varDecl = (sourceFile.statements[0] as ts.VariableStatement).declarationList.declarations[0];
           const varDeclType = typeChecker.getTypeAtLocation(varDecl.type!);
           expect(varDeclType.getSymbol()).to.be.undefined;
@@ -272,11 +227,11 @@ describe("Project", () => {
           const program = project.createProgram();
           expect(ts.getPreEmitDiagnostics(program).length).to.equal(0);
 
-          const typeChecker = program.getTypeChecker();
+          const typeChecker = program.getProject().checker;
           const varDecl = (sourceFile.statements[0] as ts.VariableStatement).declarationList.declarations[0];
           const varDeclType = typeChecker.getTypeAtLocation(varDecl.type!);
           const stringDec = varDeclType.getSymbol()!.declarations![0];
-          expect(stringDec.getSourceFile().fileName).to.equal("/other/lib.es5.d.ts");
+          expect(stringDec.resolve()!.getSourceFile().fileName).to.equal(getNativeLibDirectory().replace(/\\/g, "/") + "/lib.es5.d.ts");
         });
       });
     }
@@ -334,22 +289,20 @@ describe("Project", () => {
     it("should update a source file by source file object", () => {
       const { project } = setup();
       project.createSourceFile("/test.ts", "class Test {}");
-      const newSourceFile = ts.createLanguageServiceSourceFile("/test.ts", ts.ScriptSnapshot.fromString("class Other {}"), ts.ScriptTarget.Latest, "1", true);
-      project.updateSourceFile(newSourceFile);
-      expect((newSourceFile as any).version).to.equal("2");
-      assertProjectHasSourceFiles(project, [newSourceFile]);
+      const newSourceFile = createCompilerSourceFile("/test.ts", "class Other {}", ts.ScriptTarget.Latest, true);
+      const adopted = project.updateSourceFile(newSourceFile);
+      expect(adopted.text).to.equal(newSourceFile.text);
+      expect(adopted).not.to.equal(newSourceFile);
+      assertProjectHasSourceFiles(project, [adopted]);
     });
 
-    it("should update a source file by source file object", () => {
+    it("does not add legacy mutable metadata to adopted native nodes", () => {
       const { project } = setup();
-      project.createSourceFile("/test.ts", "class Test {}");
-      const newSourceFile = ts.createSourceFile("/test.ts", "class Other {}", ts.ScriptTarget.Latest);
-      expect((newSourceFile as any).version).to.be.undefined;
-      expect((newSourceFile as any).scriptSnapshot).to.be.undefined;
-      project.updateSourceFile(newSourceFile);
-      expect((newSourceFile as any).version).to.equal("0");
-      expect((newSourceFile as any).scriptSnapshot.getText()).to.equal(newSourceFile.text);
-      assertProjectHasSourceFiles(project, [newSourceFile]);
+      const sourceFile = createCompilerSourceFile("/test.ts", "class Other {}", ts.ScriptTarget.Latest);
+      const adopted = project.updateSourceFile(sourceFile);
+      expect((sourceFile as unknown as { version?: string }).version).to.be.undefined;
+      expect(adopted.text).to.equal("class Other {}");
+      assertProjectHasSourceFiles(project, [adopted]);
     });
   });
 
@@ -428,7 +381,7 @@ describe("Project", () => {
         const fileSystem = new InMemoryFileSystemHost();
         fileSystem.writeFileSync(
           "tsconfig.json",
-          `{ "compilerOptions": { "rootDir": "test", "target": "ES5" }, "include": ["test"], "exclude": ["/test/exclude"] }`,
+          `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" }, "include": ["test"], "exclude": ["/test/exclude"] }`,
         );
         fileSystem.writeFileSync("/otherFile.ts", "");
         fileSystem.writeFileSync("/test/file.ts", "");
@@ -441,7 +394,10 @@ describe("Project", () => {
         expect(project.getSourceFiles().map(s => s.fileName).sort()).to.deep.equal(expectedFiles);
         expect(returnedFiles.map(s => s.fileName).sort()).to.deep.equal(expectedFiles);
         // uses the compiler options of the project
-        expect(project.getSourceFiles().map(s => s.languageVersion)).to.deep.equal([ts.ScriptTarget.Latest, ts.ScriptTarget.Latest]);
+        expect(project.getSourceFiles().map(() => project.compilerOptions.get().target ?? ts.ScriptTarget.Latest)).to.deep.equal([
+          ts.ScriptTarget.Latest,
+          ts.ScriptTarget.Latest,
+        ]);
       });
     }
   });
@@ -653,10 +609,10 @@ describe("Project", () => {
       const { project } = setup();
       const sourceFile = project.createSourceFile("./test.ts", "export const t = 5;");
       const program = project.createProgram();
-      const typeChecker = program.getTypeChecker();
+      const typeChecker = program.getProject().checker;
       const symbol = typeChecker.getSymbolAtLocation(sourceFile)!;
-      const tExport = symbol.exports!.get(ts.escapeLeadingUnderscores("t"))!;
-      expect(tExport.getName()).to.equal("t");
+      const tExport = symbol.getExports().get(ts.escapeLeadingUnderscores("t"))!;
+      expect(tExport.name).to.equal("t");
     });
   });
 
@@ -666,7 +622,7 @@ describe("Project", () => {
       const languageSerivce = project.getLanguageService(); // define it first
       const sourceFile = project.createSourceFile("./test.ts", "const t = 5;");
       const declaration = (sourceFile.statements[0] as ts.VariableStatement).declarationList.declarations[0];
-      const result = languageSerivce.findRenameLocations(sourceFile.fileName, declaration.getStart(), false, false)!;
+      const result = languageSerivce.findRenameLocations(sourceFile.fileName, declaration.getStart(), false, false, true)!;
       expect(result.length).to.equal(1);
       expect(result[0].textSpan.start).to.equal(6);
       expect(result[0].textSpan.length).to.equal(1);
@@ -764,7 +720,7 @@ describe("Project", () => {
       const fileSystem = new InMemoryFileSystemHost();
       fileSystem.writeFileSync("/tsconfig.json", `{ "fies": [] }`);
       const project = createProjectSync({ fileSystem, tsConfigFilePath: "/tsconfig.json" });
-      expect(project.createProgram().getConfigFileParsingDiagnostics().map(d => d.messageText)).to.deep.equal([
+      expect(project.createProgram().getConfigFileParsingDiagnostics().map(d => d.text)).to.deep.equal([
         `No inputs were found in config file '/tsconfig.json'. Specified 'include' paths were '["**/*"]' and 'exclude' paths were '[]'.`,
       ]);
     });
@@ -777,11 +733,11 @@ describe("Project", () => {
 
   function assertProjectHasSourceFiles(project: Project, sourceFiles: ts.SourceFile[]) {
     expect(project.getSourceFiles().map(s => s.fileName).sort()).to.deep.equal(sourceFiles.map(s => s.fileName).sort());
-    expect(project.createProgram().getSourceFiles().map(s => s.fileName).sort()).to.deep.equal(sourceFiles.map(s => s.fileName).sort());
+    expect(project.createProgram().getSourceFileNames().slice().sort()).to.deep.equal(sourceFiles.map(s => s.fileName).sort());
   }
 
   function assertProjectHasSourceFilePaths(project: Project, sourceFilePaths: string[]) {
     expect(project.getSourceFiles().map(s => s.fileName).sort()).to.deep.equal(sourceFilePaths.sort());
-    expect(project.createProgram().getSourceFiles().map(s => s.fileName).sort()).to.deep.equal(sourceFilePaths.sort());
+    expect(project.createProgram().getSourceFileNames().slice().sort()).to.deep.equal(sourceFilePaths.sort());
   }
 });

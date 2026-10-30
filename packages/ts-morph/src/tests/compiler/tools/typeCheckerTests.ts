@@ -30,6 +30,14 @@ describe("TypeChecker", () => {
       expect(ambientModules[0].getName()).to.equal(`"jquery"`);
     });
 
+    it("deduplicates ambient modules and excludes external module augmentations", () => {
+      const { project } = getInfoFromText("");
+      project.createSourceFile("one.d.ts", "declare module \"merged\" { export const one: number; }");
+      project.createSourceFile("two.d.ts", "declare module \"merged\" { export const two: number; }");
+      project.createSourceFile("augmentation.d.ts", "export {}; declare module \"augmentation\" {}");
+      expect(project.getTypeChecker().getAmbientModules().map(symbol => symbol.getName())).to.deep.equal(["\"merged\""]);
+    });
+
     it("should not have any when they don't exist", () => {
       const { project } = getInfoFromText("");
       expect(project.getTypeChecker().getAmbientModules().length).to.equal(0);

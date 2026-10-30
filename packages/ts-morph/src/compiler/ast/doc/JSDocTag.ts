@@ -44,6 +44,8 @@ export class JSDocTag<NodeType extends ts.JSDocTag = ts.JSDocTag> extends JSDocT
       return undefined;
     else if (typeof this.compilerNode.comment === "string")
       return this.compilerNode.comment;
+    else if (this.compilerNode.comment.every(node => node.kind === SyntaxKind.JSDocText))
+      return ts.getTextOfJSDocComment(this.compilerNode.comment);
     else
       return this.compilerNode.comment.map(n => this._getNodeFromCompilerNodeIfExists(n));
   }

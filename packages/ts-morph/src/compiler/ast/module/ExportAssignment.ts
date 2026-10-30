@@ -6,8 +6,8 @@ import { callBaseSet } from "../callBaseSet";
 import { ExpressionedNode } from "../expression";
 import { Statement } from "../statement";
 
-export const ExportAssignmentBase = ExpressionedNode(JSDocableNode(Statement));
-export class ExportAssignment extends ExportAssignmentBase<ts.ExportAssignment> {
+export const ExportAssignmentBase = ExpressionedNode(JSDocableNode(Statement<ts.ExportAssignment>));
+export class ExportAssignment extends ExportAssignmentBase {
   /**
    * Gets if this is an export equals assignment.
    *

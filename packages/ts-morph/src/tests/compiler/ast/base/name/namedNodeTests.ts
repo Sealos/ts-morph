@@ -31,6 +31,14 @@ describe("NamedNode", () => {
       optionsTest("enum MyEnum {}\nlet myEnum = 'MyEnum';", { renameInStrings: true }, "enum MyNewEnum {}\nlet myEnum = 'MyNewEnum';");
     });
 
+    it("renames template text and comments without changing regexes or parts of Unicode words", () => {
+      optionsTest(
+        "enum MyEnum {}\nconst regex = /MyEnum/; const text = `MyEnum${MyEnum}MyEnum`; // MyEnum𐐀 MyEnum",
+        { renameInStrings: true, renameInComments: true },
+        "enum MyNewEnum {}\nconst regex = /MyEnum/; const text = `MyNewEnum${MyNewEnum}MyNewEnum`; // MyEnum𐐀 MyNewEnum",
+      );
+    });
+
     it("should not rename in strings when specified", () => {
       optionsTest("enum MyEnum {}\nlet myEnum = 'MyEnum';", {}, "enum MyNewEnum {}\nlet myEnum = 'MyEnum';");
     });

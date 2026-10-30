@@ -25,6 +25,7 @@ import {
   DiagnosticMessageChain,
   DiagnosticWithLocation,
   DocumentSpan,
+  ExpressionWithTypeArguments,
   JSDocTagInfo,
   Node,
   ReferencedSymbol,
@@ -62,14 +63,15 @@ export class CompilerFactory {
   readonly #documentSpanCache = new WeakCache<ts.DocumentSpan, DocumentSpan>();
   readonly #diagnosticMessageChainCache = new WeakCache<ts.DiagnosticMessageChain, DiagnosticMessageChain>();
   readonly #jsDocTagInfoCache = new WeakCache<ts.JSDocTagInfo, JSDocTagInfo>();
-  readonly #signatureCache = new WeakCache<ts.Signature, Signature>();
-  readonly #symbolCache = new WeakCache<ts.Symbol, Symbol>();
+  #signatureCache = new WeakCache<ts.Signature, Signature>();
+  #semanticEpoch = -1;
+  #symbolCache = new WeakCache<ts.Symbol, Symbol>();
   readonly #symbolDisplayPartCache = new WeakCache<ts.SymbolDisplayPart, SymbolDisplayPart>();
   readonly #referencedSymbolEntryCache = new WeakCache<ts.ReferencedSymbolEntry, ReferencedSymbolEntry>();
   readonly #referencedSymbolCache = new WeakCache<ts.ReferencedSymbol, ReferencedSymbol>();
   readonly #referencedSymbolDefinitionInfoCache = new WeakCache<ts.ReferencedSymbolDefinitionInfo, ReferencedSymbolDefinitionInfo>();
-  readonly #typeCache = new WeakCache<ts.Type, Type>();
-  readonly #typeParameterCache = new WeakCache<ts.TypeParameter, TypeParameter>();
+  #typeCache = new WeakCache<ts.Type, Type>();
+  #typeParameterCache = new WeakCache<ts.TypeParameter, TypeParameter>();
   readonly #nodeCache = new ForgetfulNodeCache();
   readonly #directoryCache: DirectoryCache;
   readonly #sourceFileAddedEventContainer = new EventContainer<SourceFile>();
@@ -328,7 +330,9 @@ export class CompilerFactory {
         return errors.throwNotImplementedForNeverValueError(compilerNode);
       }
 
-      const ctor = kindToWrapperMappings[compilerNode.kind] || Node as any;
+      const ctor = compilerNode.kind === SyntaxKind.TypeReference && compilerNode.parent?.kind === SyntaxKind.HeritageClause
+        ? ExpressionWithTypeArguments
+        : kindToWrapperMappings[compilerNode.kind] || Node as any;
       return new ctor(this.#context, compilerNode, sourceFile) as Node<NodeType>;
     }
 
@@ -370,6 +374,8 @@ export class CompilerFactory {
   }
 
   createCompilerSourceFileFromText(filePath: StandardizedFilePath, text: string, scriptKind: ScriptKind | undefined): ts.SourceFile {
+    // A borrowed compiler node has no owner for new native parse leases.
+    this.#context.project;
     return this.documentRegistry.createOrUpdateSourceFile(filePath, this.#context.compilerOptions.get(), ts.ScriptSnapshot.fromString(text), scriptKind);
   }
 
@@ -380,7 +386,7 @@ export class CompilerFactory {
   getSourceFile(compilerSourceFile: ts.SourceFile, options: { markInProject: boolean }): SourceFile {
     let wasAdded = false;
     // check the file path cache first in case this source file object is for an old manipulation (see issue 1164)
-    const sourceFile = this.#sourceFileCacheByFilePath.get(compilerSourceFile.fileName as StandardizedFilePath)
+    const sourceFile = this.#sourceFileCacheByFilePath.get(this.#context.fileSystemWrapper.getStandardizedAbsolutePath(compilerSourceFile.fileName))
       ?? this.#nodeCache.getOrCreate<SourceFile>(compilerSourceFile, () => {
         const createdSourceFile = new SourceFile(this.#context, compilerSourceFile);
 
@@ -479,7 +485,19 @@ export class CompilerFactory {
    * Gets a wrapped type from a compiler type.
    * @param type - Compiler type.
    */
+  #refreshSemanticCaches() {
+    const epoch = this.documentRegistry.nativeSession.epoch;
+    if (this.#semanticEpoch === epoch)
+      return;
+    this.#semanticEpoch = epoch;
+    this.#typeCache = new WeakCache();
+    this.#typeParameterCache = new WeakCache();
+    this.#signatureCache = new WeakCache();
+    this.#symbolCache = new WeakCache();
+  }
+
   getType<TType extends ts.Type>(type: TType): Type<TType> {
+    this.#refreshSemanticCaches();
     if ((type.flags & TypeFlags.TypeParameter) === TypeFlags.TypeParameter)
       return this.getTypeParameter(type as any as ts.TypeParameter) as any as Type<TType>;
     return this.#typeCache.getOrCreate(type, () => new Type<TType>(this.#context, type));
@@ -490,6 +508,7 @@ export class CompilerFactory {
    * @param typeParameter - Compiler type parameter
    */
   getTypeParameter(typeParameter: ts.TypeParameter): TypeParameter {
+    this.#refreshSemanticCaches();
     return this.#typeParameterCache.getOrCreate(typeParameter, () => new TypeParameter(this.#context, typeParameter));
   }
 
@@ -498,6 +517,7 @@ export class CompilerFactory {
    * @param signature - Compiler signature.
    */
   getSignature(signature: ts.Signature): Signature {
+    this.#refreshSemanticCaches();
     return this.#signatureCache.getOrCreate(signature, () => new Signature(this.#context, signature));
   }
 
@@ -506,6 +526,7 @@ export class CompilerFactory {
    * @param symbol - Compiler symbol.
    */
   getSymbol(symbol: ts.Symbol): Symbol {
+    this.#refreshSemanticCaches();
     return this.#symbolCache.getOrCreate(symbol, () => new Symbol(this.#context, symbol));
   }
 
@@ -555,7 +576,7 @@ export class CompilerFactory {
    */
   getDiagnostic(diagnostic: ts.Diagnostic): Diagnostic {
     return this.#diagnosticCache.getOrCreate(diagnostic, () => {
-      if (diagnostic.start != null)
+      if (diagnostic.pos >= 0)
         return new DiagnosticWithLocation(this.#context, diagnostic as ts.DiagnosticWithLocation);
       return new Diagnostic(this.#context, diagnostic);
     });

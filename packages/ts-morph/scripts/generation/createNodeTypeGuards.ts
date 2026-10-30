@@ -29,55 +29,59 @@ export function createNodeTypeGuards(inspector: TsMorphInspector, tsInspector: T
   const kindToWrapperMappings = inspector.getKindToWrapperMappings();
   const implementedNodeNames = inspector.getImplementedKindToNodeMappingsNames();
 
+  const methodsAndProperties: Array<tsMorph.MethodDeclarationStructure | tsMorph.PropertyDeclarationStructure> = [];
+  getMethodInfos().filter(n => isAllowedClass(n.name.replace(/^is/, "")) && !["ExpressionWithTypeArguments", "TypeReferenceNode"].includes(n.name)).forEach(
+    method => {
+      const description = `Gets if the node is ${(method.name[0] === "A" || method.name[0] === "E") ? "an" : "a"} ${method.name}.`;
+      const common = {
+        name: `is${method.name.endsWith("TypeNode") ? method.name : method.name.replace(/Node$/, "")}`,
+        isStatic: true,
+      };
+      const isImplementedNodeName = implementedNodeNames.has(method.name);
+      const hasSingleSyntaxKind = method.syntaxKinds.length == 1;
+      if (isImplementedNodeName && !method.isMixin && hasSingleSyntaxKind) {
+        const propertyStructure: tsMorph.PropertyDeclarationStructure = {
+          ...common,
+          kind: tsMorph.StructureKind.Property,
+          docs: [{ description }],
+          initializer: `(node): node is ${getNodeType(method)} => node?.getKind() === SyntaxKind.${method.name}`,
+          type: `(node: compiler.Node | undefined) => node is ${getNodeType(method)}`,
+          isReadonly: true,
+        };
+        methodsAndProperties.push(propertyStructure);
+      } else {
+        const methodStructure: tsMorph.MethodDeclarationStructure = {
+          ...common,
+          kind: tsMorph.StructureKind.Method,
+          docs: [{
+            description,
+          }],
+          typeParameters: method.isMixin ? [{ name: "T", constraint: "compiler.Node" }] : [],
+          parameters: [{ name: "node", type: method.isMixin ? "T | undefined" : "compiler.Node | undefined" }],
+          returnType: `node is ${getNodeType(method)}`,
+          statements: writer => {
+            if (method.syntaxKinds.length === 0) {
+              writer.writeLine("return false;");
+              return;
+            }
+
+            writeSyntaxKinds(writer, method.syntaxKinds);
+          },
+        };
+        methodsAndProperties.push(methodStructure);
+      }
+    },
+  );
+
   // remove all the static methods/properties that start with "is"
   [
     ...nodeClass.getStaticMethods(),
     ...nodeClass.getStaticProperties(),
-  ].filter(m => m.getName().startsWith("is")).forEach(m => m.remove());
+  ].filter(m => m.getName().startsWith("is") && !["isExpressionWithTypeArguments", "isTypeReference"].includes(m.getName())).forEach(m => m.remove());
 
   createIs();
   createIsNode();
   createIsCommentMethods();
-
-  const methodsAndProperties: Array<tsMorph.MethodDeclarationStructure | tsMorph.PropertyDeclarationStructure> = [];
-  getMethodInfos().filter(n => isAllowedClass(n.name.replace(/^is/, ""))).forEach(method => {
-    const description = `Gets if the node is ${(method.name[0] === "A" || method.name[0] === "E") ? "an" : "a"} ${method.name}.`;
-    const common = {
-      name: `is${method.name.endsWith("TypeNode") ? method.name : method.name.replace(/Node$/, "")}`,
-      isStatic: true,
-    };
-    const isImplementedNodeName = implementedNodeNames.has(method.name);
-    const hasSingleSyntaxKind = method.syntaxKinds.length == 1;
-    if (isImplementedNodeName && !method.isMixin && hasSingleSyntaxKind) {
-      const propertyStructure: tsMorph.PropertyDeclarationStructure = {
-        ...common,
-        kind: tsMorph.StructureKind.Property,
-        docs: [{ description }],
-        initializer: `Node.is(SyntaxKind.${method.name})`,
-        type: `(node: compiler.Node | undefined) => node is ${getNodeType(method)}`,
-        isReadonly: true,
-      };
-      methodsAndProperties.push(propertyStructure);
-    } else {
-      const methodStructure: tsMorph.MethodDeclarationStructure = {
-        ...common,
-        kind: tsMorph.StructureKind.Method,
-        docs: [{
-          description,
-        }],
-        typeParameters: method.isMixin ? [{ name: "T", constraint: "compiler.Node" }] : [],
-        parameters: [{ name: "node", type: method.isMixin ? "T | undefined" : "compiler.Node | undefined" }],
-        returnType: `node is ${getNodeType(method)}`,
-        statements: writer => {
-          if (method.syntaxKinds.length === 0)
-            throw new Error(`For some reason ${method.name} had no syntax kinds.`);
-
-          writeSyntaxKinds(writer, method.syntaxKinds);
-        },
-      };
-      methodsAndProperties.push(methodStructure);
-    }
-  });
 
   for (const methodOrProp of methodsAndProperties) {
     if (methodOrProp.kind == tsMorph.StructureKind.Method)
@@ -253,7 +257,7 @@ export function createNodeTypeGuards(inspector: TsMorphInspector, tsInspector: T
       returnType: `node is compiler.CommentStatement`,
       parameters: [{ name: "node", type: "compiler.Node | undefined" }],
       statements: writer => {
-        writer.writeLine(`return (node?.compilerNode as compiler.CompilerCommentStatement)?._commentKind === compiler.CommentNodeKind.Statement;`);
+        writer.writeLine(`return (node?.compilerNode as compiler.CompilerCommentStatement)?._commentKind === CommentNodeKind.Statement;`);
       },
     }, {
       docs: ["Gets if the provided node is a CommentClassElement."],
@@ -262,7 +266,7 @@ export function createNodeTypeGuards(inspector: TsMorphInspector, tsInspector: T
       returnType: `node is compiler.CommentClassElement`,
       parameters: [{ name: "node", type: "compiler.Node | undefined" }],
       statements: writer => {
-        writer.writeLine(`return (node?.compilerNode as compiler.CompilerCommentClassElement)?._commentKind === compiler.CommentNodeKind.ClassElement;`);
+        writer.writeLine(`return (node?.compilerNode as compiler.CompilerCommentClassElement)?._commentKind === CommentNodeKind.ClassElement;`);
       },
     }, {
       docs: ["Gets if the provided value is a CommentTypeElement."],
@@ -271,7 +275,7 @@ export function createNodeTypeGuards(inspector: TsMorphInspector, tsInspector: T
       returnType: `node is compiler.CommentTypeElement`,
       parameters: [{ name: "node", type: "compiler.Node | undefined" }],
       statements: writer => {
-        writer.writeLine(`return (node?.compilerNode as compiler.CompilerCommentTypeElement)?._commentKind === compiler.CommentNodeKind.TypeElement;`);
+        writer.writeLine(`return (node?.compilerNode as compiler.CompilerCommentTypeElement)?._commentKind === CommentNodeKind.TypeElement;`);
       },
     }, {
       docs: ["Gets if the provided node is a CommentObjectLiteralElement."],
@@ -281,7 +285,7 @@ export function createNodeTypeGuards(inspector: TsMorphInspector, tsInspector: T
       parameters: [{ name: "node", type: "compiler.Node | undefined" }],
       statements: writer =>
         writer.writeLine(
-          `return (node?.compilerNode as compiler.CompilerCommentObjectLiteralElement)?._commentKind === compiler.CommentNodeKind.ObjectLiteralElement;`,
+          `return (node?.compilerNode as compiler.CompilerCommentObjectLiteralElement)?._commentKind === CommentNodeKind.ObjectLiteralElement;`,
         ),
     }, {
       docs: ["Gets if the provided node is a CommentEnumMember."],
@@ -291,7 +295,7 @@ export function createNodeTypeGuards(inspector: TsMorphInspector, tsInspector: T
       parameters: [{ name: "node", type: "compiler.Node | undefined" }],
       statements: writer =>
         writer.writeLine(
-          `return (node?.compilerNode as compiler.CompilerCommentEnumMember)?._commentKind == compiler.CommentNodeKind.EnumMember;`,
+          `return (node?.compilerNode as compiler.CompilerCommentEnumMember)?._commentKind == CommentNodeKind.EnumMember;`,
         ),
     }];
 

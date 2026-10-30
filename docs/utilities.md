@@ -43,7 +43,7 @@ node.print(); // returns: string
 
 But sometimes you might want to print a compiler node. There's a `printNode` utility function for doing that:
 
-```ts
+```ts ignore-error: 1109
 import { printNode, ts } from "ts-morph";
 
 // get a compiler node from somewhere

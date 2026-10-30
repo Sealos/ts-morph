@@ -23,7 +23,7 @@ describe("tsInternal", () => {
 
     for (const module of getAllModules()) {
       for (const target of getAllTargets()) {
-        doTest(ModuleResolutionKind.NodeJs, module, target, ModuleResolutionKind.NodeJs);
+        doTest(ModuleResolutionKind.Node10, module, target, ModuleResolutionKind.Node10);
         doTest(ModuleResolutionKind.Classic, module, target, ModuleResolutionKind.Classic);
       }
     }
@@ -39,8 +39,8 @@ describe("tsInternal", () => {
     }
 
     doTest(undefined, undefined, undefined, ModuleResolutionKind.Bundler);
-    doTest(undefined, undefined, ScriptTarget.ES3, ModuleResolutionKind.Bundler);
-    doTest(undefined, undefined, ScriptTarget.ES5, ModuleResolutionKind.Bundler);
+    doTest(undefined, undefined, ScriptTarget.ES2015, ModuleResolutionKind.Bundler);
+    doTest(undefined, undefined, ScriptTarget.ES2015, ModuleResolutionKind.Bundler);
     doTest(undefined, undefined, ScriptTarget.ES2015, ModuleResolutionKind.Bundler);
     doTest(undefined, undefined, ScriptTarget.ES2016, ModuleResolutionKind.Bundler);
     doTest(undefined, undefined, ScriptTarget.ES2017, ModuleResolutionKind.Bundler);

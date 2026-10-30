@@ -2,6 +2,7 @@ import {
   CompilerOptionsContainer,
   createHosts,
   createModuleResolutionHost,
+  createNativeCompilerFileSystem,
   errors,
   FileSystemHost,
   FileUtils,
@@ -61,15 +62,19 @@ export interface ProjectOptions {
 export async function createProject(options: ProjectOptions = {}): Promise<Project> {
   const { project, tsConfigResolver } = createProjectCommon(options);
 
-  // add any file paths from the tsconfig if necessary
-  if (tsConfigResolver != null && options.skipAddingFilesFromTsConfig !== true) {
-    await addSourceFilesForTsConfigResolver(project, tsConfigResolver, project.compilerOptions.get());
+  try {
+    if (tsConfigResolver != null && options.skipAddingFilesFromTsConfig !== true) {
+      await addSourceFilesForTsConfigResolver(project, tsConfigResolver, project.compilerOptions.get());
 
-    if (!options.skipFileDependencyResolution)
-      project.resolveSourceFileDependencies();
+      if (!options.skipFileDependencyResolution)
+        project.resolveSourceFileDependencies();
+    }
+
+    return project;
+  } catch (error) {
+    project.dispose();
+    throw error;
   }
-
-  return project;
 }
 
 /**
@@ -79,15 +84,19 @@ export async function createProject(options: ProjectOptions = {}): Promise<Proje
 export function createProjectSync(options: ProjectOptions = {}): Project {
   const { project, tsConfigResolver } = createProjectCommon(options);
 
-  // add any file paths from the tsconfig if necessary
-  if (tsConfigResolver != null && options.skipAddingFilesFromTsConfig !== true) {
-    addSourceFilesForTsConfigResolverSync(project, tsConfigResolver, project.compilerOptions.get());
+  try {
+    if (tsConfigResolver != null && options.skipAddingFilesFromTsConfig !== true) {
+      addSourceFilesForTsConfigResolverSync(project, tsConfigResolver, project.compilerOptions.get());
 
-    if (!options.skipFileDependencyResolution)
-      project.resolveSourceFileDependencies();
+      if (!options.skipFileDependencyResolution)
+        project.resolveSourceFileDependencies();
+    }
+
+    return project;
+  } catch (error) {
+    project.dispose();
+    throw error;
   }
-
-  return project;
 }
 
 function createProjectCommon(options: ProjectOptions) {
@@ -100,7 +109,6 @@ function createProjectCommon(options: ProjectOptions) {
     skipLoadingLibFiles: options.skipLoadingLibFiles,
   });
 
-  // get tsconfig info
   const tsConfigResolver = options.tsConfigFilePath == null
     ? undefined
     : new TsConfigResolver(
@@ -118,6 +126,8 @@ function createProjectCommon(options: ProjectOptions) {
   return { project, tsConfigResolver };
 
   function verifyOptions() {
+    if (options.isKnownTypesPackageName != null)
+      throw new errors.NotSupportedError("TypeScript 7.1 does not expose isKnownTypesPackageName hooks.");
     if (options.fileSystem != null && options.useInMemoryFileSystem)
       throw new errors.InvalidOperationError("Cannot provide a file system when specifying to use an in-memory file system.");
   }
@@ -131,7 +141,7 @@ function createProjectCommon(options: ProjectOptions) {
   function getEncodingFromProvidedOptions() {
     const defaultEncoding = "utf-8";
     if (options.compilerOptions != null)
-      return options.compilerOptions.charset || defaultEncoding;
+      return defaultEncoding;
     return defaultEncoding;
   }
 }
@@ -143,6 +153,15 @@ export class Project {
   readonly #languageServiceHost: ts.LanguageServiceHost;
   readonly #compilerHost: ts.CompilerHost;
   readonly #configFileParsingDiagnostics: ts.Diagnostic[];
+
+  /** Releases this project's native compiler resources. */
+  dispose() {
+    this.#sourceFileCache.documentRegistry.dispose();
+  }
+
+  [Symbol.dispose]() {
+    this.dispose();
+  }
 
   /** @private */
   constructor(objs: {
@@ -161,11 +180,16 @@ export class Project {
 
     // initialize the source file cache
     this.#sourceFileCache = new SourceFileCache(this.#fileSystemWrapper, this.compilerOptions);
+    const session = this.#sourceFileCache.documentRegistry.nativeSession;
+    session.setFileSystem(createNativeCompilerFileSystem(this.#fileSystemWrapper, this.#sourceFileCache));
+    session.configureLibraries(options.skipLoadingLibFiles, options.libFolderPath);
+    this.compilerOptions.onModified(() => session.invalidate());
 
     // initialize the compiler resolution host
     const resolutionHost = !options.resolutionHost
       ? undefined
       : options.resolutionHost(this.getModuleResolutionHost(), () => this.compilerOptions.get());
+    session.setResolutionHost(resolutionHost);
     // setup context
     const newLineKind = "\n";
     const { languageServiceHost, compilerHost } = createHosts({
@@ -182,6 +206,7 @@ export class Project {
     this.#languageServiceHost = languageServiceHost;
     this.#compilerHost = compilerHost;
     this.#configFileParsingDiagnostics = tsConfigResolver?.getErrors() ?? [];
+    session.configureProgramOptions({ configFileParsingDiagnostics: this.#configFileParsingDiagnostics });
 
     function getCompilerOptions(): ts.CompilerOptions {
       return {
@@ -373,27 +398,13 @@ export class Project {
     if (typeof filePathOrSourceFile === "string")
       return this.createSourceFile(filePathOrSourceFile, sourceFileText, options);
 
-    // ensure this has the language service properties set
-    incrementVersion(filePathOrSourceFile);
-    ensureScriptSnapshot(filePathOrSourceFile);
-
-    return this.#sourceFileCache.setSourceFile(filePathOrSourceFile);
-
-    function incrementVersion(sourceFile: ts.SourceFile) {
-      let version = (sourceFile as any).version || "-1";
-      const parsedVersion = parseInt(version, 10);
-      if (isNaN(parsedVersion))
-        version = "0";
-      else
-        version = (parsedVersion + 1).toString();
-
-      (sourceFile as any).version = version;
-    }
-
-    function ensureScriptSnapshot(sourceFile: ts.SourceFile) {
-      if ((sourceFile as any).scriptSnapshot == null)
-        (sourceFile as any).scriptSnapshot = ts.ScriptSnapshot.fromString(sourceFile.text);
-    }
+    // Adopt the text into this project's session so the caller can release its
+    // original parsed-file lease independently.
+    return this.#sourceFileCache.createSourceFileFromText(
+      this.#fileSystemWrapper.getStandardizedAbsolutePath(filePathOrSourceFile.fileName),
+      filePathOrSourceFile.text,
+      { scriptKind: filePathOrSourceFile.scriptKind },
+    );
   }
 
   /**
@@ -433,15 +444,13 @@ export class Project {
    * Note: You should get a new program any time source files are added, removed, or changed.
    */
   createProgram(options?: ts.CreateProgramOptions): ts.Program {
-    const oldProgram = this.#oldProgram;
-    const program = ts.createProgram({
-      rootNames: Array.from(this.#sourceFileCache.getSourceFilePaths()),
-      options: this.compilerOptions.get(),
-      host: this.#compilerHost,
-      oldProgram,
+    const session = this.#sourceFileCache.documentRegistry.nativeSession;
+    const program = session.getProgram(Array.from(this.#sourceFileCache.getSourceFilePaths()), this.compilerOptions.get(), {
       configFileParsingDiagnostics: this.#configFileParsingDiagnostics,
       ...options,
     });
+    for (const fileName of program.getSourceFileNames())
+      this.#sourceFileCache.setSourceFile(program.getSourceFile(fileName)!);
     this.#oldProgram = program;
     return program;
   }
