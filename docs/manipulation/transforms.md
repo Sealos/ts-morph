@@ -9,9 +9,9 @@ It is possible to transform the AST using the compiler API, though this is not a
 For example:
 
 ```ts
-import { ts } from "ts-morph";
+import { Project, ts } from "ts-morph";
 
-const project = new Project();
+using project = new Project();
 const sourceFile = project.createSourceFile("Example.ts", "1; 2; 3;");
 
 // this can be done starting on any node and not just the root node
@@ -20,7 +20,7 @@ sourceFile.transform(traversal => {
 
   if (ts.isNumericLiteral(node)) {
     const incrementedValue = parseInt(node.text, 10) + 1;
-    return traversal.factory.createNumericLiteral(incrementedValue.toString());
+    return traversal.factory.createNumericLiteral(incrementedValue.toString(), ts.TokenFlags.None);
   }
 
   return node;
@@ -35,9 +35,9 @@ Doing this is more performant, but you won't have type checking, symbols, and yo
 ### Conditionally visiting children
 
 ```ts
-import { ts } from "ts-morph";
+import { Project, ts } from "ts-morph";
 
-const project = new Project();
+using project = new Project();
 const sourceFile = project.createSourceFile(
   "Example.ts",
   `
@@ -69,11 +69,10 @@ sourceFile.transform(traversal => {
   if (ts.isFunctionDeclaration(node)) {
     return traversal.factory.updateFunctionDeclaration(
       node,
-      [],
-      [],
+      undefined,
       undefined,
       traversal.factory.createIdentifier("newName"),
-      [],
+      undefined,
       [],
       undefined,
       traversal.factory.createBlock([]),

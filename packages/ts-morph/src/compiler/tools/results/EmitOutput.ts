@@ -44,6 +44,14 @@ export class EmitOutput {
    */
   @Memoize
   getOutputFiles() {
-    return this.compilerObject.outputFiles.map(f => new OutputFile(this.#context, f));
+    return Array.from(
+      this.compilerObject.outputFiles,
+      ([name, file]) =>
+        new OutputFile(this.#context, {
+          name,
+          text: file.text.startsWith("\uFEFF") ? file.text.slice(1) : file.text,
+          writeByteOrderMark: file.text.startsWith("\uFEFF"),
+        }),
+    );
   }
 }

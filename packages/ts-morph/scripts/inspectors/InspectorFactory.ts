@@ -17,6 +17,10 @@ export class InspectorFactory {
     this.#tsInspector = new TsInspector(wrapperFactory, this.#project);
   }
 
+  [Symbol.dispose]() {
+    this.#project.dispose();
+  }
+
   getTsMorphInspector() {
     return this.#tsMorphInspector;
   }

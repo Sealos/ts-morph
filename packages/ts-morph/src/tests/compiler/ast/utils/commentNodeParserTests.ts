@@ -1,9 +1,10 @@
 import { SyntaxKind, ts } from "@ts-morph/common";
 import { expect } from "chai";
+import { createCompilerSourceFile } from "../../../../../../scripts/nativeTestHelpers";
 import { CommentNodeParser, ContainerNodes, isComment } from "../../../../compiler/ast/utils";
 describe("CommentNodeParser", () => {
   function createSourceFile(text: string) {
-    return ts.createSourceFile("test.ts", text, ts.ScriptTarget.Latest, false);
+    return createCompilerSourceFile("test.ts", text, ts.ScriptTarget.Latest, false);
   }
 
   function assertEqual(
@@ -15,7 +16,7 @@ describe("CommentNodeParser", () => {
   }
 
   function getBlock(sourceFile: ts.SourceFile) {
-    return ts.forEachChild(sourceFile, c => ts.forEachChild(c, g => ts.isModuleBlock(g) || ts.isBlock(g) ? g : undefined))!;
+    return sourceFile.forEachChild(c => c.forEachChild(g => ts.isModuleBlock(g) || ts.isBlock(g) ? g : undefined))!;
   }
 
   describe("statemented tests", () => {
@@ -220,7 +221,7 @@ describe("CommentNodeParser", () => {
           return node;
         }
 
-        return ts.forEachChild(node, getContainer);
+        return node.forEachChild(getContainer);
       }
     }
 

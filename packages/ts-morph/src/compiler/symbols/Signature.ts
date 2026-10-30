@@ -1,11 +1,13 @@
-import { ts } from "@ts-morph/common";
+import { errors, ts } from "@ts-morph/common";
 import { ProjectContext } from "../../ProjectContext";
-import { JSDocTagInfo } from "../ast";
+import { JSDocTagInfo, Node } from "../ast";
 import { SymbolDisplayPart } from "../tools";
 import { Type } from "../types";
 import { Symbol } from "./Symbol";
 
 export class Signature {
+  readonly #epoch: number;
+
   /** @internal */
   readonly #context: ProjectContext;
   /** @internal */
@@ -19,6 +21,7 @@ export class Signature {
    */
   constructor(context: ProjectContext, signature: ts.Signature) {
     this.#context = context;
+    this.#epoch = context.compilerFactory.documentRegistry.nativeSession.epoch;
     this.#compilerSignature = signature;
   }
 
@@ -26,6 +29,7 @@ export class Signature {
    * Gets the underlying compiler signature.
    */
   get compilerSignature() {
+    this.#context.compilerFactory.documentRegistry.nativeSession.assertEpoch(this.#epoch);
     return this.#compilerSignature;
   }
 
@@ -33,7 +37,7 @@ export class Signature {
    * Gets the type parameters.
    */
   getTypeParameters() {
-    const typeParameters = this.compilerSignature.typeParameters || [];
+    const typeParameters = this.compilerSignature.getTypeParameters() ?? [];
     return typeParameters.map(t => this.#context.compilerFactory.getTypeParameter(t));
   }
 
@@ -41,7 +45,7 @@ export class Signature {
    * Gets the parameters.
    */
   getParameters(): Symbol[] {
-    return this.compilerSignature.parameters.map(p => this.#context.compilerFactory.getSymbol(p));
+    return this.compilerSignature.getParameters().map(p => this.#context.compilerFactory.getSymbol(p));
   }
 
   /**
@@ -55,15 +59,23 @@ export class Signature {
    * Get the documentation comments.
    */
   getDocumentationComments(): SymbolDisplayPart[] {
-    const docs = this.compilerSignature.getDocumentationComment(this.#context.typeChecker.compilerObject);
-    return docs.map(d => this.#context.compilerFactory.getSymbolDisplayPart(d));
+    const declaration = this.getDeclaration();
+    const symbol = this.#context.typeChecker.compilerObject.getSymbolAtLocation(declaration.compilerNode);
+    const docs = symbol?.getDocumentationComment(this.#context.typeChecker.compilerObject)
+      ?? (Node.isJSDocable(declaration) ? declaration.getJsDocs().map(doc => doc.getCommentText() ?? "").filter(Boolean).join("\n") : "");
+    return docs.length === 0 ? [] : [this.#context.compilerFactory.getSymbolDisplayPart({ text: docs, kind: "text" })];
   }
 
   /**
    * Gets the JS doc tags.
    */
   getJsDocTags(): JSDocTagInfo[] {
-    const tags = this.compilerSignature.getJsDocTags();
+    const declaration = this.getDeclaration();
+    const symbol = this.#context.typeChecker.compilerObject.getSymbolAtLocation(declaration.compilerNode);
+    const tags = symbol?.getJsDocTags(this.#context.typeChecker.compilerObject)
+      ?? (Node.isJSDocable(declaration)
+        ? declaration.getJsDocs().flatMap(doc => doc.getTags().map(tag => ({ name: tag.getTagName(), text: tag.getCommentText() })))
+        : []);
     return tags.map(t => this.#context.compilerFactory.getJSDocTagInfo(t));
   }
 
@@ -72,10 +84,13 @@ export class Signature {
    */
   getDeclaration() {
     const { compilerFactory } = this.#context;
-    // the compiler says this is non-nullable, but it can return undefined for an unknown signature
-    // returned by calling `TypeChecker#getResolvedType()`; however, we're returning undefined in that scenario
-    // and so this should never be null (hopefully)
-    const compilerSignatureDeclaration = this.compilerSignature.getDeclaration();
-    return compilerFactory.getNodeFromCompilerNode(compilerSignatureDeclaration, compilerFactory.getSourceFileForNode(compilerSignatureDeclaration));
+    const compilerSignatureDeclaration = errors.throwIfNullOrUndefined(
+      this.compilerSignature.declaration?.resolve(),
+      "Native signature declaration could not be resolved.",
+    );
+    return compilerFactory.getNodeFromCompilerNode(
+      compilerSignatureDeclaration as ts.SignatureDeclaration,
+      compilerFactory.getSourceFileForNode(compilerSignatureDeclaration),
+    );
   }
 }

@@ -35,22 +35,28 @@ export class Diagnostic<TCompilerObject extends ts.Diagnostic = ts.Diagnostic> {
   getSourceFile(): SourceFile | undefined {
     if (this._context == null)
       return undefined;
-    const file = this.compilerObject.file;
-    return file == null ? undefined : this._context.compilerFactory.getSourceFile(file, { markInProject: false });
+    const fileName = this.compilerObject.fileName;
+    return fileName == null
+      ? undefined
+      : this._context.compilerFactory.addOrGetSourceFileFromFilePath(this._context.fileSystemWrapper.getStandardizedAbsolutePath(fileName), {
+        markInProject: false,
+        scriptKind: undefined,
+      });
   }
 
   /**
    * Gets the message text.
    */
   getMessageText(): string | DiagnosticMessageChain {
-    const messageText = this._compilerObject.messageText;
-    if (typeof messageText === "string")
-      return messageText;
-
-    if (this._context == null)
-      return new DiagnosticMessageChain(messageText);
-    else
-      return this._context.compilerFactory.getDiagnosticMessageChain(messageText);
+    if (this._compilerObject.messageChain == null)
+      return this._compilerObject.text;
+    const convert = (diagnostic: ts.Diagnostic): ts.DiagnosticMessageChain => ({
+      messageText: diagnostic.text,
+      category: diagnostic.category,
+      code: diagnostic.code,
+      next: diagnostic.messageChain?.map(convert),
+    });
+    return new DiagnosticMessageChain(convert(this._compilerObject));
   }
 
   /**
@@ -68,14 +74,14 @@ export class Diagnostic<TCompilerObject extends ts.Diagnostic = ts.Diagnostic> {
    * Gets the start.
    */
   getStart() {
-    return this.compilerObject.start;
+    return this.compilerObject.pos < 0 ? undefined : this.compilerObject.pos;
   }
 
   /**
    * Gets the length.
    */
   getLength() {
-    return this.compilerObject.length;
+    return this.compilerObject.pos < 0 ? undefined : this.compilerObject.end - this.compilerObject.pos;
   }
 
   /**

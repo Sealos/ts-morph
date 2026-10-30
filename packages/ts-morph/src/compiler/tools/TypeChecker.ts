@@ -41,7 +41,20 @@ export class TypeChecker {
    * Gets the ambient module symbols (ex. modules in the @types folder or node_modules).
    */
   getAmbientModules() {
-    return this.compilerObject.getAmbientModules().map(s => this.#context.compilerFactory.getSymbol(s));
+    const symbols = new Map<string, Symbol>();
+    for (const fileName of this.#context.program.compilerObject.getSourceFileNames()) {
+      const file = this.#context.program.compilerObject.getSourceFile(fileName)!;
+      if (ts.isExternalModule(file))
+        continue;
+      for (const statement of file.statements) {
+        if (ts.isModuleDeclaration(statement) && ts.isStringLiteral(statement.name)) {
+          const symbol = this.compilerObject.getSymbolAtLocation(statement.name);
+          if (symbol != null)
+            symbols.set(symbol.name, this.#context.compilerFactory.getSymbol(symbol));
+        }
+      }
+    }
+    return [...symbols.values()];
   }
 
   /**
@@ -258,7 +271,9 @@ export class TypeChecker {
    * @param typeReference - Type reference.
    */
   getTypeArguments(typeReference: Type) {
-    return this.compilerObject.getTypeArguments(typeReference.compilerType as ts.TypeReference)
+    if (!typeReference.compilerType.isTypeReference())
+      return [];
+    return this.compilerObject.getTypeArguments(typeReference.compilerType)
       .map(arg => this.#context.compilerFactory.getType(arg));
   }
 
@@ -287,7 +302,7 @@ export class TypeChecker {
   }
 
   resolveName(name: string, location: Node | undefined, meaning: SymbolFlags, excludeGlobals: boolean) {
-    const symbol = this.compilerObject.resolveName(name, location?.compilerNode, meaning, excludeGlobals);
+    const symbol = this.compilerObject.resolveName(name, meaning, location?.compilerNode, excludeGlobals);
     return symbol ? this.#context.compilerFactory.getSymbol(symbol) : undefined;
   }
 }

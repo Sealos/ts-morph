@@ -31,11 +31,11 @@ export interface ExclamationTokenableNode {
 export function ExclamationTokenableNode<T extends Constructor<ExclamationTokenableNodeExtensionType>>(Base: T): Constructor<ExclamationTokenableNode> & T {
   return class extends Base implements ExclamationTokenableNode {
     hasExclamationToken() {
-      return this.compilerNode.exclamationToken != null;
+      return this.getExclamationTokenNode() != null;
     }
 
     getExclamationTokenNode(): Node<ts.ExclamationToken> | undefined {
-      return this._getNodeFromCompilerNodeIfExists(this.compilerNode.exclamationToken);
+      return this.getFirstChildByKind(SyntaxKind.ExclamationToken) as Node<ts.ExclamationToken> | undefined;
     }
 
     getExclamationTokenNodeOrThrow(message?: string | (() => string)): Node<ts.ExclamationToken> {

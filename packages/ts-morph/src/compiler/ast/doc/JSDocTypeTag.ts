@@ -14,6 +14,6 @@ export class JSDocTypeTag extends JSDocTag<ts.JSDocTypeTag> {
     if (node != null && node.pos === node.end)
       return undefined;
 
-    return this._getNodeFromCompilerNodeIfExists(this.compilerNode.typeExpression);
+    return this._getNodeFromCompilerNodeIfExists(this.compilerNode.typeExpression as ts.JSDocTypeExpression | undefined);
   }
 }

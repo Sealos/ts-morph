@@ -76,6 +76,15 @@ export interface SourceFileCreateOptions {
  * Project that holds source files.
  */
 export class Project {
+  /** Releases this project's native compiler resources. Idempotent. */
+  dispose() {
+    this._context.dispose();
+  }
+
+  [Symbol.dispose]() {
+    this.dispose();
+  }
+
   /** @internal */
   readonly _context: ProjectContext;
 
@@ -86,7 +95,6 @@ export class Project {
   constructor(options: ProjectOptions = {}) {
     verifyOptions();
 
-    // setup file system
     const fileSystem = getFileSystem();
     const fileSystemWrapper = new TransactionalFileSystem({
       fileSystem,
@@ -94,17 +102,14 @@ export class Project {
       libFolderPath: options.libFolderPath,
     });
 
-    // get tsconfig info
     const tsConfigResolver = options.tsConfigFilePath == null
       ? undefined
       : new TsConfigResolver(fileSystemWrapper, fileSystemWrapper.getStandardizedAbsolutePath(options.tsConfigFilePath), getEncoding());
 
-    // compiler options initialization
     const compilerOptions = getCompilerOptions();
     const compilerOptionsContainer = new CompilerOptionsContainer(options.defaultCompilerOptions);
     compilerOptionsContainer.set(compilerOptions);
 
-    // setup context
     this._context = new ProjectContext({
       project: this,
       compilerOptionsContainer,
@@ -116,16 +121,19 @@ export class Project {
       libFolderPath: options.libFolderPath,
     });
 
-    // initialize manipulation settings
-    if (options.manipulationSettings != null)
-      this._context.manipulationSettings.set(options.manipulationSettings);
+    try {
+      if (options.manipulationSettings != null)
+        this._context.manipulationSettings.set(options.manipulationSettings);
 
-    // add any file paths from the tsconfig if necessary
-    if (tsConfigResolver != null && options.skipAddingFilesFromTsConfig !== true) {
-      this.#addSourceFilesForTsConfigResolver(tsConfigResolver, compilerOptions);
+      if (tsConfigResolver != null && options.skipAddingFilesFromTsConfig !== true) {
+        this.#addSourceFilesForTsConfigResolver(tsConfigResolver, compilerOptions);
 
-      if (!options.skipFileDependencyResolution)
-        this.resolveSourceFileDependencies();
+        if (!options.skipFileDependencyResolution)
+          this.resolveSourceFileDependencies();
+      }
+    } catch (error) {
+      this._context.dispose();
+      throw error;
     }
 
     function verifyOptions() {
@@ -153,7 +161,7 @@ export class Project {
     function getEncoding() {
       const defaultEncoding = "utf-8";
       if (options.compilerOptions != null)
-        return options.compilerOptions.charset ?? defaultEncoding;
+        return defaultEncoding;
       return defaultEncoding;
     }
   }

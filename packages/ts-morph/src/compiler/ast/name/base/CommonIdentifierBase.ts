@@ -3,7 +3,7 @@ import { Constructor } from "../../../../types";
 import { DefinitionInfo } from "../../../tools";
 import { Node } from "../../common";
 
-export type CommonIdentifierBaseExtensionType = Node<ts.Node & { text: string }>;
+export type CommonIdentifierBaseExtensionType = Node;
 
 export interface CommonIdentifierBase {
   /**
@@ -27,7 +27,7 @@ export interface CommonIdentifierBase {
 export function CommonIdentifierBase<T extends Constructor<CommonIdentifierBaseExtensionType>>(Base: T): Constructor<CommonIdentifierBase> & T {
   return class extends Base implements CommonIdentifierBase {
     getText() {
-      return this.compilerNode.text;
+      return (this.compilerNode as ts.Identifier | ts.PrivateIdentifier).text;
     }
 
     getDefinitionNodes(): Node[] {

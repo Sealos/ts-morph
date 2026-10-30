@@ -82,6 +82,20 @@ export class ProjectContext {
     }
   }
 
+  /** @internal */
+  assertAlive() {
+    this.compilerFactory.documentRegistry.nativeSession.assertAlive();
+  }
+
+  /** @internal */
+  dispose() {
+    try {
+      this.#languageService?._dispose();
+    } finally {
+      this.compilerFactory.documentRegistry.dispose();
+    }
+  }
+
   /** Gets the compiler options. */
   get compilerOptions() {
     return this.#compilerOptions;
@@ -170,7 +184,9 @@ export class ProjectContext {
    * @param sourceFile - Optional source file to filter the results by.
    */
   getPreEmitDiagnostics(sourceFile?: SourceFile): Diagnostic[] {
-    const compilerDiagnostics = ts.getPreEmitDiagnostics(this.program.compilerObject, sourceFile?.compilerNode);
+    const program = this.program.compilerObject;
+    const file = sourceFile?.getFilePath();
+    const compilerDiagnostics = ts.getPreEmitDiagnostics(program, file);
     return compilerDiagnostics.map(d => this.compilerFactory.getDiagnostic(d));
   }
 

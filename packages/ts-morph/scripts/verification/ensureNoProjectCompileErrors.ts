@@ -7,7 +7,7 @@
 import { getProject } from "../common/mod.ts";
 import { printDiagnostics } from "../deps.ts";
 
-const project = getProject();
+using project = getProject();
 
 if (project.getSourceFiles().length === 0)
   throw new Error("Could not find any source files.");
@@ -17,5 +17,5 @@ const diagnostics = project.getPreEmitDiagnostics();
 if (diagnostics.length > 0) {
   printDiagnostics(diagnostics);
   console.error("There were project compile errors!");
-  Deno.exit(1);
+  process.exitCode = 1;
 }

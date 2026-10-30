@@ -4,7 +4,7 @@ import { Node } from "../../common";
 import { LeftHandSideExpression } from "../LeftHandSideExpression";
 import { BaseExpressionedNode } from "./ExpressionedNode";
 
-export type LeftHandSideExpressionedNodeExtensionType = Node<ts.Node & { expression: ts.LeftHandSideExpression }>;
+export type LeftHandSideExpressionedNodeExtensionType = Node<ts.Node & { expression: ts.Expression }>;
 
 export interface LeftHandSideExpressionedNode extends BaseExpressionedNode<LeftHandSideExpression> {
 }

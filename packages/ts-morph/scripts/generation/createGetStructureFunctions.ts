@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 /**
  * Code generation: Create "get structure" functions
  * -------------------------------------------------
@@ -16,7 +17,7 @@ export function createGetStructureFunctions(structures: Structure[]) {
   const writer = new tsMorph.CodeBlockWriter({ newLine: "\n" });
 
   writer.writeLine("// dprint-ignore-file");
-  writer.writeLine("// DO NOT MANUALLY EDIT!! File generated via: deno task code-generate").newLine();
+  writer.writeLine("// DO NOT MANUALLY EDIT!! File generated via: npm run code-generate").newLine();
   writer.writeLine(`import { ObjectUtils } from "@ts-morph/common";`);
   writer.writeLine(`import * as compiler from "../../compiler";`);
   writer.writeLine(`import * as structures from "../../structures";`);
@@ -29,7 +30,7 @@ export function createGetStructureFunctions(structures: Structure[]) {
 
   writer.newLineIfLastNot();
 
-  Deno.writeTextFileSync(path.join(folders.tsMorph, "src/manipulation/helpers/getStructureFunctions.ts"), writer.toString());
+  writeFileSync(path.join(folders.tsMorph, "src/manipulation/helpers/getStructureFunctions.ts"), writer.toString());
 }
 
 // todo: make this better... good enough for now

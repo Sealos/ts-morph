@@ -104,15 +104,6 @@ export class SourceFileCache implements TsSourceFileContainer {
 
   setSourceFile(sourceFile: ts.SourceFile) {
     const standardizedFilePath = this.#fileSystemWrapper.getStandardizedAbsolutePath(sourceFile.fileName);
-    sourceFile.fileName = standardizedFilePath;
-
-    this.documentRegistry.updateDocument(
-      standardizedFilePath,
-      this.#compilerOptions.get(),
-      ts.ScriptSnapshot.fromString(sourceFile.text),
-      this.getSourceFileVersion(sourceFile),
-      (sourceFile as any)["scriptKind"] as ts.ScriptKind,
-    );
 
     const dirPath = FileUtils.getDirPath(standardizedFilePath);
     if (!this.#fileSystemWrapper.directoryExistsSync(dirPath))
@@ -124,6 +115,7 @@ export class SourceFileCache implements TsSourceFileContainer {
 
   removeSourceFile(filePath: StandardizedFilePath) {
     this.#sourceFilesByFilePath.delete(filePath);
+    this.documentRegistry.removeSourceFile(filePath);
   }
 
   containsDirectoryAtPath(dirPath: StandardizedFilePath) {

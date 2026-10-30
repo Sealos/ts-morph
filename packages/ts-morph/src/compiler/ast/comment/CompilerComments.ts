@@ -100,6 +100,10 @@ export abstract class CompilerCommentNode implements ts.Node {
     return undefined;
   }
 
+  *childrenIter<TNext = void>(): Generator<ts.Node, TNext | undefined, TNext> {
+    return undefined;
+  }
+
   forEachChild<T>(cbNode: (node: ts.Node) => T | undefined, cbNodeArray?: ((nodes: ts.NodeArray<ts.Node>) => T | undefined) | undefined): T | undefined {
     return undefined;
   }

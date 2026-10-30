@@ -1,17 +1,16 @@
+import { minimatch } from "minimatch";
+import { createNativeCompilerFileSystem } from "../compiler/createNativeCompilerFileSystem";
 import { Memoize } from "../decorators";
 import { FileUtils, StandardizedFilePath, TransactionalFileSystem } from "../fileSystem";
-import { ts } from "../typescript";
-import { getTsParseConfigHost, TsParseConfigHostResult } from "./getTsParseConfigHost";
+import { NativeCompilerSession, ts } from "../typescript";
 
 export class TsConfigResolver {
   readonly #encoding: string;
   readonly #fileSystem: TransactionalFileSystem;
-  readonly #host: TsParseConfigHostResult;
   readonly #tsConfigFilePath: StandardizedFilePath;
   readonly #tsConfigDirPath: StandardizedFilePath;
 
   constructor(fileSystem: TransactionalFileSystem, tsConfigFilePath: StandardizedFilePath, encoding: string) {
-    this.#host = getTsParseConfigHost(fileSystem, { encoding });
     this.#tsConfigFilePath = fileSystem.getStandardizedAbsolutePath(tsConfigFilePath);
     this.#tsConfigDirPath = FileUtils.getDirPath(this.#tsConfigFilePath);
     this.#fileSystem = fileSystem;
@@ -36,11 +35,8 @@ export class TsConfigResolver {
 
     const configFileContent = this._parseJsonConfigFileContent();
 
-    for (let dirName of configFileContent.directories) {
-      const dirPath = fileSystem.getStandardizedAbsolutePath(dirName);
-      if (fileSystem.directoryExistsSync(dirPath))
-        directories.add(dirPath);
-    }
+    if (configFileContent.fileNames.length === 0 && configFileContent.directories.length > 0)
+      directories.add(this.#tsConfigDirPath);
 
     for (let fileName of configFileContent.fileNames) {
       const filePath = fileSystem.getStandardizedAbsolutePath(fileName);
@@ -51,24 +47,55 @@ export class TsConfigResolver {
       }
     }
 
+    const raw = configFileContent.rawConfig as { exclude?: string[] };
+    const exclusions = [...(raw.exclude ?? []), ...(compilerOptions.outDir == null ? [] : [compilerOptions.outDir])]
+      .map(pattern => fileSystem.getStandardizedAbsolutePath(pattern, this.#tsConfigDirPath));
+    for (const directory of configFileContent.directories.sort()) {
+      const path = fileSystem.getStandardizedAbsolutePath(directory);
+      if (
+        !directories.has(FileUtils.getDirPath(path))
+        || exclusions.some(pattern => path === pattern || path.startsWith(pattern + "/") || minimatch(path, pattern))
+      ) {
+        continue;
+      }
+      if (fileSystem.directoryExistsSync(path) && fileSystem.readDirSync(path).length === 0)
+        directories.add(path);
+    }
+
     return {
       filePaths: Array.from(files.values()),
-      directoryPaths: Array.from(directories.values()),
+      directoryPaths: Array.from(directories.values()).sort(),
     };
   }
 
   @Memoize
   private _parseJsonConfigFileContent() {
-    this.#host.clearDirectories();
-    const result = ts.parseJsonConfigFileContent(this.#getTsConfigFileJson(), this.#host, this.#tsConfigDirPath, undefined, this.#tsConfigFilePath);
-    return { ...result, directories: this.#host.getDirectories() };
-  }
-
-  #getTsConfigFileJson() {
-    const text = this.#fileSystem.readFileSync(this.#tsConfigFilePath, this.#encoding);
-    const parseResult = ts.parseConfigFileTextToJson(this.#tsConfigFilePath, text);
-    if (parseResult.error != null)
-      throw new Error(parseResult.error.messageText.toString());
-    return parseResult.config;
+    const host = createNativeCompilerFileSystem(this.#fileSystem);
+    const directories: string[] = [];
+    const getEntries = host.getAccessibleEntries;
+    host.getAccessibleEntries = path => {
+      directories.push(path);
+      return getEntries(path);
+    };
+    using session = new NativeCompilerSession(host);
+    // Read through our filesystem first to preserve FileNotFoundError and encoding.
+    this.#fileSystem.readFileSync(this.#tsConfigFilePath, this.#encoding);
+    const config = session.api.readConfigFile(this.#tsConfigFilePath);
+    if (config.error != null)
+      throw new Error(config.error.text);
+    const result = session.api.parseConfigFile(this.#tsConfigFilePath);
+    if (result.fileNames.length === 0 && !(config.config as { files?: unknown }).files && !result.errors.some(error => error.code === 18003)) {
+      const raw = config.config as { include?: string[]; exclude?: string[] };
+      result.errors.push({
+        category: ts.DiagnosticCategory.Error,
+        code: 18003,
+        pos: -1,
+        end: -1,
+        text: `No inputs were found in config file '${this.#tsConfigFilePath}'. Specified 'include' paths were '${
+          JSON.stringify(raw.include ?? ["**/*"])
+        }' and 'exclude' paths were '${JSON.stringify(raw.exclude ?? [])}'.`,
+      });
+    }
+    return { ...result, directories, rawConfig: config.config };
   }
 }

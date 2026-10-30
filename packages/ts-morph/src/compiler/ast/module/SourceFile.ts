@@ -124,7 +124,7 @@ export class SourceFile extends SourceFileBase<ts.SourceFile> {
    * Gets the file path.
    */
   getFilePath() {
-    return this.compilerNode.fileName as StandardizedFilePath;
+    return this._context.fileSystemWrapper.getStandardizedAbsolutePath(this.compilerNode.fileName);
   }
 
   /**
@@ -603,7 +603,7 @@ export class SourceFile extends SourceFileBase<ts.SourceFile> {
    * Gets the script target of the source file.
    */
   getLanguageVersion(): ScriptTarget {
-    return this.compilerNode.languageVersion;
+    return this._context.compilerOptions.get().target ?? ts.ScriptTarget.Latest;
   }
 
   /**

@@ -1,22 +1,20 @@
 import { errors, ScriptTarget, SyntaxKind, ts } from "@ts-morph/common";
 import { expect } from "chai";
+import { createCompilerSourceFile } from "../../../../../scripts/nativeTestHelpers";
 import { SourceFile } from "../../../compiler";
 import { Project } from "../../../Project";
 import { createWrappedNode } from "../../../utils/compiler/createWrappedNode";
 
 describe("createWrappedNode", () => {
-  it("should throw an exception if passing in a node not created with setParentNodes set to true.", () => {
-    const sourceFile = ts.createSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, false);
-    let child: ts.Node;
-    ts.forEachChild(sourceFile, node => child = node);
-    expect(child!.parent).to.equal(undefined);
-    expect(() => {
-      createWrappedNode(child);
-    }).to.throw(errors.InvalidOperationError, "Please ensure the node was created from a source file with 'setParentNodes' set to 'true'.");
+  it("wraps native nodes whose parents are always available", () => {
+    const sourceFile = createCompilerSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, false);
+    const child = sourceFile.statements[0];
+    expect(child.parent).to.equal(sourceFile);
+    expect(createWrappedNode(child).getText()).to.equal("class MyClass {}");
   });
 
   it("should get a wrapped node", () => {
-    const compilerSourceFile = ts.createSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, true);
+    const compilerSourceFile = createCompilerSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, true);
     const child = compilerSourceFile.getChildren()[0];
     const node = createWrappedNode(child);
     const sourceFile = node.getSourceFile();
@@ -26,7 +24,7 @@ describe("createWrappedNode", () => {
   });
 
   it("should get a wrapped node when also providing the source file", () => {
-    const compilerSourceFile = ts.createSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, true);
+    const compilerSourceFile = createCompilerSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, true);
     const child = compilerSourceFile.getChildren()[0];
     const node = createWrappedNode(child, { sourceFile: compilerSourceFile });
     const sourceFile = node.getSourceFile();
@@ -36,7 +34,7 @@ describe("createWrappedNode", () => {
   });
 
   it("should be able to provide compiler options", () => {
-    const compilerSourceFile = ts.createSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, true);
+    const compilerSourceFile = createCompilerSourceFile("file.ts", "class MyClass {}", ScriptTarget.ES2016, true);
     const child = compilerSourceFile.getChildren()[0];
     const compilerOptions = { target: ScriptTarget.ES2016 };
     const node = createWrappedNode(child, { compilerOptions });
@@ -54,7 +52,7 @@ describe("createWrappedNode", () => {
   });
 
   it("should throw when getting the type and no type checker was provided", () => {
-    const compilerSourceFile = ts.createSourceFile("file.ts", "let s = '';", ScriptTarget.ES2016, true);
+    const compilerSourceFile = createCompilerSourceFile("file.ts", "let s = '';", ScriptTarget.ES2016, true);
     const wrappedSourceFile = createWrappedNode(compilerSourceFile) as SourceFile;
     const expectedMessage = "A type checker is required for this operation. This might occur when manipulating or "
       + "getting type information from a node that was not added to a Project object and created via createWrappedNode. "

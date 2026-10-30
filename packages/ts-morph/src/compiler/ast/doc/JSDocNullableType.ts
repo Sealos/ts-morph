@@ -11,6 +11,6 @@ export class JSDocNullableType extends JSDocType<ts.JSDocNullableType> {
   }
 
   isPostfix() {
-    return this.compilerNode.postfix;
+    return this.compilerNode.type.pos === this.compilerNode.pos;
   }
 }

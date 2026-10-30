@@ -1160,7 +1160,9 @@ export function ClassLikeDeclarationBaseSpecific<T extends Constructor<ClassLike
     }
 
     getMembersWithComments() {
-      const compilerNode = this.compilerNode as ts.ClassExpression | ts.ClassDeclaration;
+      const compilerNode = this.compilerNode;
+      if (!ts.isClassExpression(compilerNode) && !ts.isClassDeclaration(compilerNode))
+        throw new errors.InvalidOperationError("Expected a class declaration or expression.");
       const members = ExtendedParser.getContainerArray(compilerNode, this.getSourceFile().compilerNode);
       return getAllMembers(this, members)
         .filter(m => isSupportedClassMember(m) || Node.isCommentClassElement(m)) as (ClassMemberTypes | CommentClassElement)[];

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "CommonJS",
+    "module": "nodenext",
     "strict": true,
     "sourceMap": false,
     "removeComments": false,
@@ -11,7 +11,20 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
     "newLine": "lf",
-    "importHelpers": false
+    "importHelpers": false,
+    "moduleResolution": "nodenext",
+    "lib": [
+      "esnext"
+    ],
+    "paths": {
+      "@ts-morph/common": [
+        "./packages/common/src/index.ts"
+      ]
+    },
+    "types": [
+      "node",
+      "mocha"
+    ]
   },
   "compileOnSave": false
 }

@@ -23,6 +23,10 @@ Note: Requires ts-morph 22+
 To check if a type is assignable to another type, use the `isAssignableTo` method:
 
 ```ts
+const literalFile = project.createSourceFile("literal.ts", "const literalValue = \"text\";");
+const stringFile = project.createSourceFile("string.ts", "let stringValue: string;");
+const stringLitType = literalFile.getVariableDeclarations()[0].getType();
+const stringType = stringFile.getVariableDeclarations()[0].getType();
 if (stringLitType.isAssignableTo(stringType)) {
   // ...
 }

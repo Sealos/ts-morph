@@ -895,6 +895,7 @@ export class Directory {
             if (dir === thisDirectory)
               return FileUtils.pathJoin(dir.getPath(), "index.ts");
             return dir.getPath();
+          case ModuleResolutionKind.Unknown:
           case ModuleResolutionKind.Classic:
           case ModuleResolutionKind.Node16:
           case ModuleResolutionKind.NodeNext:
@@ -912,6 +913,7 @@ export class Directory {
             if (dirPath === thisDirectory.getPath())
               return filePath;
             return filePath.replace(/\/index?(\.d\.ts|\.ts|\.js)$/i, "") as StandardizedFilePath;
+          case ModuleResolutionKind.Unknown:
           case ModuleResolutionKind.Classic:
           case ModuleResolutionKind.Node16:
           case ModuleResolutionKind.NodeNext:

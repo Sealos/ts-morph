@@ -11,7 +11,7 @@
 import { getDeclarationProject } from "../common/mod.ts";
 import { printDiagnostics } from "../deps.ts";
 
-const project = getDeclarationProject();
+using project = getDeclarationProject();
 
 if (project.getSourceFiles().length === 0)
   throw new Error("Could not find any source files.");
@@ -21,5 +21,5 @@ const diagnostics = project.getPreEmitDiagnostics();
 if (diagnostics.length > 0) {
   printDiagnostics(diagnostics);
   console.error("There were declaration file issues!");
-  Deno.exit(1);
+  process.exitCode = 1;
 }

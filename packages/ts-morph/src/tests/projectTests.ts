@@ -3,6 +3,7 @@ import { expect } from "chai";
 import { assert, IsExact } from "conditional-type-checks";
 import { EOL } from "node:os";
 import * as path from "node:path";
+import { getNativeLibDirectory } from "../../../common/src/typescript/getNativeLibDirectory";
 import { ClassDeclaration, EmitResult, Identifier, InterfaceDeclaration, MemoryEmitResult, ModuleDeclaration, Node, SourceFile } from "../compiler";
 import { IndentationText } from "../options";
 import { Project, ProjectOptions } from "../Project";
@@ -28,18 +29,18 @@ describe("Project", () => {
 
     it("should add the files from tsconfig.json by default with the target in the tsconfig.json", () => {
       const fileSystem = new InMemoryFileSystemHost();
-      fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES5" }, "include": ["test"] }`);
+      fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" }, "include": ["test"] }`);
       fileSystem.writeFileSync("/otherFile.ts", "");
       fileSystem.writeFileSync("/test/file.ts", "");
       fileSystem.writeFileSync("/test/test2/file2.ts", "");
       const project = new Project({ tsConfigFilePath: "tsconfig.json", fileSystem });
       expect(project.getSourceFiles().map(s => s.getFilePath()).sort()).to.deep.equal(["/test/file.ts", "/test/test2/file2.ts"].sort());
-      expect(project.getSourceFiles().map(s => s.getLanguageVersion())).to.deep.equal([ScriptTarget.ES5, ScriptTarget.ES5]);
+      expect(project.getSourceFiles().map(s => s.getLanguageVersion())).to.deep.equal([ScriptTarget.ES2015, ScriptTarget.ES2015]);
     });
 
     it("should add the files from tsconfig.json by default and also take into account the passed in compiler options", () => {
       const fileSystem = new InMemoryFileSystemHost();
-      fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "target": "ES5" } }`);
+      fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "target": "ES2015" } }`);
       fileSystem.writeFileSync("/otherFile.ts", "");
       fileSystem.writeFileSync("/test/file.ts", "");
       fileSystem.writeFileSync("/test/test2/file2.ts", "");
@@ -49,7 +50,7 @@ describe("Project", () => {
 
     it("should not add the files from tsconfig.json when specifying not to", () => {
       const fileSystem = new InMemoryFileSystemHost();
-      fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES5" } }`);
+      fileSystem.writeFileSync("tsconfig.json", `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" } }`);
       fileSystem.writeFileSync("/test/file.ts", "");
       fileSystem.writeFileSync("/test/test2/file2.ts", "");
       const project = new Project({ tsConfigFilePath: "tsconfig.json", skipAddingFilesFromTsConfig: true, fileSystem });
@@ -160,58 +161,9 @@ describe("Project", () => {
       });
     });
 
-    describe("custom type reference directive resolution", () => {
-      function setup() {
-        const fileSystem = new InMemoryFileSystemHost();
-        const testFilePath = "/other/test.d.ts";
-        fileSystem.writeFileSync("/dir/tsconfig.json", `{ "compilerOptions": { "target": "ES5" } }`);
-        fileSystem.writeFileSync("/dir/main.ts", `/// <reference types="../other/testasdf" />\n\nconst test = new Test();`);
-        fileSystem.writeFileSync(testFilePath, `declare class Test {}`);
-        fileSystem.getCurrentDirectory = () => "/dir";
-        const project = new Project({
-          fileSystem,
-          resolutionHost: (moduleResolutionHost, getCompilerOptions) => {
-            return {
-              resolveTypeReferenceDirectives: (typeDirectiveNames: string[] | ts.FileReference[], containingFile: string) => {
-                const compilerOptions = getCompilerOptions();
-                const resolvedTypeReferenceDirectives: ts.ResolvedTypeReferenceDirective[] = [];
-
-                for (const typeDirectiveName of typeDirectiveNames.map(replaceAsdfExtension)) {
-                  const result = ts.resolveTypeReferenceDirective(typeDirectiveName, containingFile, compilerOptions, moduleResolutionHost);
-                  if (result.resolvedTypeReferenceDirective)
-                    resolvedTypeReferenceDirectives.push(result.resolvedTypeReferenceDirective);
-                }
-
-                return resolvedTypeReferenceDirectives;
-              },
-            };
-
-            function replaceAsdfExtension(moduleName: string | ts.FileReference) {
-              moduleName = typeof moduleName === "string" ? moduleName : moduleName.fileName;
-              return moduleName.replace("asdf", "");
-            }
-          },
-          tsConfigFilePath: "/dir/tsconfig.json",
-          skipLoadingLibFiles: true,
-        });
-
-        const mainFile = project.getSourceFileOrThrow("main.ts");
-        const testIdentifier = mainFile.getFirstDescendantOrThrow(d => d.getText() === "Test") as Identifier;
-        return { project, mainFile, testFilePath, testIdentifier };
-      }
-
-      it("should support custom resolution", () => {
-        const { testIdentifier } = setup();
-        expect(testIdentifier.getDefinitionNodes().map(d => d.getText())).to.deep.equal(["declare class Test {}"]);
-      });
-
-      it("should support when renaming with the language service", () => {
-        // todo: this should be investigated in the future as this test doesn't fail when the custom type reference directive resolution
-        // is not provided to the language service.
-        const { testIdentifier } = setup();
-        testIdentifier.rename("NewClass");
-        expect(testIdentifier.getDefinitionNodes().map(d => d.getText())).to.deep.equal(["declare class NewClass {}"]);
-      });
+    it("rejects custom type-reference resolution hooks", () => {
+      expect(() => new Project({ useInMemoryFileSystem: true, resolutionHost: () => ({ resolveTypeReferenceDirectives: () => [] }) }))
+        .to.throw("custom type-reference resolution");
     });
 
     describe(nameof<ProjectOptions>("skipLoadingLibFiles"), () => {
@@ -222,13 +174,13 @@ describe("Project", () => {
 
         const varDeclType = sourceFile.getVariableDeclarationOrThrow("t").getType();
         const stringDec = varDeclType.getSymbolOrThrow().getDeclarations()[0];
-        expect(stringDec.getSourceFile().getFilePath()).to.equal("/node_modules/typescript/lib/lib.es5.d.ts");
+        expect(stringDec.getSourceFile().getFilePath()).to.equal(getNativeLibDirectory().replace(/\\/g, "/") + "/lib.es5.d.ts");
       });
 
       it("should skip loading lib files when true", () => {
         const project = new Project({ useInMemoryFileSystem: true, skipLoadingLibFiles: true });
         const sourceFile = project.createSourceFile("test.ts", "const t: String = '';");
-        expect(project.getPreEmitDiagnostics().length).to.equal(12);
+        expect(project.getPreEmitDiagnostics().length).to.equal(11);
 
         const varDeclType = sourceFile.getVariableDeclarationOrThrow("t").getType();
         expect(varDeclType.getSymbol()).to.be.undefined;
@@ -251,7 +203,7 @@ describe("Project", () => {
 
         const varDeclType = sourceFile.getVariableDeclarationOrThrow("t").getType();
         const stringDec = varDeclType.getSymbolOrThrow().getDeclarations()[0];
-        expect(stringDec.getSourceFile().getFilePath()).to.equal("/other/lib.es5.d.ts");
+        expect(stringDec.getSourceFile().getFilePath()).to.equal(getNativeLibDirectory().replace(/\\/g, "/") + "/lib.es5.d.ts");
       });
     });
   });
@@ -397,7 +349,7 @@ describe("Project", () => {
     it(`should not get the compiler options from tsconfig.json when not providing anything and a tsconfig exists`, () => {
       const fileSystem = testHelpers.getFileSystemHostWithFiles([{
         filePath: "tsconfig.json",
-        text: `{ "compilerOptions": { "rootDir": "test", "target": "ES5" } }`,
+        text: `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" } }`,
       }]);
       const project = new Project({ fileSystem });
       expect(project.getCompilerOptions()).to.deep.equal({});
@@ -412,7 +364,7 @@ describe("Project", () => {
     function doTsConfigTest(skipAddingFilesFromTsConfig: boolean) {
       const fileSystem = testHelpers.getFileSystemHostWithFiles([{
         filePath: "tsconfig.json",
-        text: `{ "compilerOptions": { "rootDir": "test", "target": "ES5" } }`,
+        text: `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" } }`,
       }]);
       const project = new Project({
         tsConfigFilePath: "tsconfig.json",
@@ -420,7 +372,7 @@ describe("Project", () => {
           target: 2,
         },
         defaultCompilerOptions: {
-          target: 1,
+          target: ScriptTarget.ES2015,
           allowJs: true,
         },
         skipAddingFilesFromTsConfig, // the behaviour changes based on this value so it's good to test both of these
@@ -711,7 +663,7 @@ describe("Project", () => {
       // todo: why did I need a slash at the start of `/test/exclude`?
       fileSystem.writeFileSync(
         "tsconfig.json",
-        `{ "compilerOptions": { "rootDir": "test", "target": "ES5" }, "include": ["test"], "exclude": ["/test/exclude"] }`,
+        `{ "compilerOptions": { "rootDir": "test", "target": "ES2015" }, "include": ["test"], "exclude": ["/test/exclude"] }`,
       );
       fileSystem.writeFileSync("/otherFile.ts", "");
       fileSystem.writeFileSync("/test/file.ts", "");
@@ -937,7 +889,7 @@ describe("Project", () => {
   describe("mixing real files with in-memory files", () => {
     function createProject() {
       // @ts-ignore
-      const testFilesDirPath = path.join(import.meta.dirname, "../../src/tests/testFiles");
+      const testFilesDirPath = path.join(__dirname, "../../src/tests/testFiles");
       const project = new Project();
       project.addSourceFilesAtPaths(`${testFilesDirPath}/**/*.ts`);
       project.createSourceFile(
@@ -1069,39 +1021,9 @@ describe("Project", () => {
       expect(writeLog.length).to.equal(2);
     });
 
-    it("should emit with custom transformations", async () => {
-      const { project, fileSystem } = emitSetup({ noLib: true, outDir: "dist" });
-
-      function visitSourceFile(
-        sourceFile: ts.SourceFile,
-        context: ts.TransformationContext,
-        visitNode: (node: ts.Node, context: ts.TransformationContext) => ts.Node,
-      ) {
-        return visitNodeAndChildren(sourceFile) as ts.SourceFile;
-
-        function visitNodeAndChildren(node: ts.Node): ts.Node {
-          return ts.visitEachChild(visitNode(node, context), visitNodeAndChildren, context);
-        }
-      }
-
-      function numericLiteralToStringLiteral(node: ts.Node, context: ts.TransformationContext) {
-        if (ts.isNumericLiteral(node))
-          return context.factory.createStringLiteral(node.text);
-        return node;
-      }
-
-      await project.emit({
-        customTransformers: {
-          before: [context => sourceFile => visitSourceFile(sourceFile, context, numericLiteralToStringLiteral)],
-        },
-      });
-
-      const writeLog = fileSystem.getWriteLog();
-      expect(writeLog[0].filePath).to.equal("/dist/file1.js");
-      expect(writeLog[0].fileText).to.equal(`"use strict";\nconst num1 = "1";\n`);
-      expect(writeLog[1].filePath).to.equal("/dist/file2.js");
-      expect(writeLog[1].fileText).to.equal(`"use strict";\nconst num2 = "2";\n`);
-      expect(writeLog.length).to.equal(2);
+    it("rejects emit-time custom transformations", () => {
+      const { project } = emitSetup({ noLib: true, outDir: "dist" });
+      expect(() => project.emitSync({ emitOnlyDtsFiles: false, ...{ customTransformers: { before: [] } } })).to.throw("customTransformers");
     });
   });
 
@@ -1406,8 +1328,8 @@ describe("Project", () => {
       const project = new Project({ useInMemoryFileSystem: true });
       const sourceFile = project.createSourceFile("myFile.ts", `function myFunction(param: string) {}`);
       expect(sourceFile.getLanguageVersion()).to.equal(ScriptTarget.Latest);
-      project.compilerOptions.set({ target: ScriptTarget.ES5 });
-      expect(sourceFile.getLanguageVersion()).to.equal(ScriptTarget.ES5);
+      project.compilerOptions.set({ target: ScriptTarget.ES2015 });
+      expect(sourceFile.getLanguageVersion()).to.equal(ScriptTarget.ES2015);
     });
   });
 

@@ -165,7 +165,7 @@ export function ModifierableNode<T extends Constructor<ModifierableNodeExtension
             return node.getStart();
           for (const child of node._getChildrenIterator()) {
             // skip over any initial syntax lists (ex. decorators) or js docs
-            if (child.getKind() === SyntaxKind.SyntaxList || ts.isJSDocCommentContainingNode(child.compilerNode))
+            if (child.getKind() === SyntaxKind.SyntaxList || ts.isJSDoc(child.compilerNode))
               continue;
             return child.getStart();
           }

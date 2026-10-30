@@ -1,5 +1,5 @@
 // DO NOT EDIT - Automatically maintained by createKindToNodeMappings.ts
-// Edit factories/kindToWrapperMappings.ts then run `deno task code-generate` instead.
+// Edit factories/kindToWrapperMappings.ts then run `npm run code-generate` instead.
 import { SyntaxKind, ts } from "@ts-morph/common";
 import * as compiler from "./index";
 
@@ -29,7 +29,6 @@ export interface ImplementedKindToNodeMappings {
   [SyntaxKind.ConstructorType]: compiler.ConstructorTypeNode;
   [SyntaxKind.ConstructSignature]: compiler.ConstructSignatureDeclaration;
   [SyntaxKind.ContinueStatement]: compiler.ContinueStatement;
-  [SyntaxKind.CommaListExpression]: compiler.CommaListExpression;
   [SyntaxKind.ComputedPropertyName]: compiler.ComputedPropertyName;
   [SyntaxKind.ConditionalExpression]: compiler.ConditionalExpression;
   [SyntaxKind.DebuggerStatement]: compiler.DebuggerStatement;
@@ -72,19 +71,13 @@ export interface ImplementedKindToNodeMappings {
   [SyntaxKind.IntersectionType]: compiler.IntersectionTypeNode;
   [SyntaxKind.JSDocAllType]: compiler.JSDocAllType;
   [SyntaxKind.JSDocAugmentsTag]: compiler.JSDocAugmentsTag;
-  [SyntaxKind.JSDocAuthorTag]: compiler.JSDocAuthorTag;
   [SyntaxKind.JSDocCallbackTag]: compiler.JSDocCallbackTag;
-  [SyntaxKind.JSDocClassTag]: compiler.JSDocClassTag;
   [SyntaxKind.JSDocDeprecatedTag]: compiler.JSDocDeprecatedTag;
-  [SyntaxKind.JSDocEnumTag]: compiler.JSDocEnumTag;
-  [SyntaxKind.JSDocFunctionType]: compiler.JSDocFunctionType;
   [SyntaxKind.JSDocImplementsTag]: compiler.JSDocImplementsTag;
   [SyntaxKind.JSDocImportTag]: compiler.JSDocImportTag;
   [SyntaxKind.JSDocLink]: compiler.JSDocLink;
   [SyntaxKind.JSDocLinkCode]: compiler.JSDocLinkCode;
   [SyntaxKind.JSDocLinkPlain]: compiler.JSDocLinkPlain;
-  [SyntaxKind.JSDocMemberName]: compiler.JSDocMemberName;
-  [SyntaxKind.JSDocNamepathType]: compiler.JSDocNamepathType;
   [SyntaxKind.JSDocNameReference]: compiler.JSDocNameReference;
   [SyntaxKind.JSDocNonNullableType]: compiler.JSDocNonNullableType;
   [SyntaxKind.JSDocNullableType]: compiler.JSDocNullableType;
@@ -102,7 +95,7 @@ export interface ImplementedKindToNodeMappings {
   [SyntaxKind.JSDocSatisfiesTag]: compiler.JSDocSatisfiesTag;
   [SyntaxKind.JSDocSeeTag]: compiler.JSDocSeeTag;
   [SyntaxKind.JSDocSignature]: compiler.JSDocSignature;
-  [SyntaxKind.JSDocTag]: compiler.JSDocUnknownTag;
+  [SyntaxKind.JSDocUnknownTag]: compiler.JSDocUnknownTag;
   [SyntaxKind.JSDocTemplateTag]: compiler.JSDocTemplateTag;
   [SyntaxKind.JSDocText]: compiler.JSDocText;
   [SyntaxKind.JSDocThisTag]: compiler.JSDocThisTag;
@@ -110,7 +103,6 @@ export interface ImplementedKindToNodeMappings {
   [SyntaxKind.JSDocTypeLiteral]: compiler.JSDocTypeLiteral;
   [SyntaxKind.JSDocTypeTag]: compiler.JSDocTypeTag;
   [SyntaxKind.JSDocTypedefTag]: compiler.JSDocTypedefTag;
-  [SyntaxKind.JSDocUnknownType]: compiler.JSDocUnknownType;
   [SyntaxKind.JSDocVariadicType]: compiler.JSDocVariadicType;
   [SyntaxKind.JsxAttribute]: compiler.JsxAttribute;
   [SyntaxKind.JsxClosingElement]: compiler.JsxClosingElement;
@@ -186,7 +178,7 @@ export interface ImplementedKindToNodeMappings {
   [SyntaxKind.TypeParameter]: compiler.TypeParameterDeclaration;
   [SyntaxKind.TypePredicate]: compiler.TypePredicateNode;
   [SyntaxKind.TypeQuery]: compiler.TypeQueryNode;
-  [SyntaxKind.TypeReference]: compiler.TypeReferenceNode;
+  [SyntaxKind.TypeReference]: compiler.TypeReferenceNode | compiler.ExpressionWithTypeArguments;
   [SyntaxKind.UnionType]: compiler.UnionTypeNode;
   [SyntaxKind.VariableDeclaration]: compiler.VariableDeclaration;
   [SyntaxKind.VariableDeclarationList]: compiler.VariableDeclarationList;
@@ -229,7 +221,6 @@ export interface KindToExpressionMappings {
   [SyntaxKind.BinaryExpression]: compiler.BinaryExpression;
   [SyntaxKind.CallExpression]: compiler.CallExpression;
   [SyntaxKind.ClassExpression]: compiler.ClassExpression;
-  [SyntaxKind.CommaListExpression]: compiler.CommaListExpression;
   [SyntaxKind.ConditionalExpression]: compiler.ConditionalExpression;
   [SyntaxKind.DeleteExpression]: compiler.DeleteExpression;
   [SyntaxKind.ElementAccessExpression]: compiler.ElementAccessExpression;

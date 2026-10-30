@@ -9,7 +9,8 @@ export class ForStatement extends ForStatementBase<ts.ForStatement> {
    * Gets this for statement's initializer or undefined if none exists.
    */
   getInitializer(): VariableDeclarationList | Expression | undefined {
-    return this._getNodeFromCompilerNodeIfExists(this.compilerNode.initializer);
+    const initializer = this.compilerNode.initializer;
+    return initializer == null || ts.isMissingDeclaration(initializer) ? undefined : this._getNodeFromCompilerNode(initializer);
   }
 
   /**

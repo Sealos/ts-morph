@@ -26,7 +26,7 @@ export function validateCompilerNodeToWrappedType(inspector: TsMorphInspector, a
       structures.push({
         kind: tsMorph.StructureKind.TypeAlias,
         name: `${wrapper.getName()}_test`,
-        type: `CompilerNodeToWrappedType<${nodes[0].isTsMorphTsNode() ? "" : "ts."}${nodes[0].getNameForType()}>`,
+        type: `CompilerNodeToWrappedType<compiler.${wrapper.getNameForType()}["compilerNode"]>`,
       });
     }
 
@@ -40,8 +40,28 @@ export function validateCompilerNodeToWrappedType(inspector: TsMorphInspector, a
 
     for (const addedNode of addedNodes) {
       const typeText = addedNode.getType().getText(addedNode).replace(/\<.*\>$/, "");
-      const nodeText = "compiler." + addedNode.getName().replace("_test", "");
-      if (typeText !== nodeText) {
+      const name = addedNode.getName().replace("_test", "");
+      const absentNativeKinds = new Set([
+        "CommaListExpression",
+        "JSDocAuthorTag",
+        "JSDocClassTag",
+        "JSDocEnumTag",
+        "JSDocFunctionType",
+        "JSDocMemberName",
+        "JSDocNamepathType",
+        "JSDocUnknownType",
+      ]);
+      const abstractExpressions = new Set(["LeftHandSideExpression", "MemberExpression", "PrimaryExpression", "UnaryExpression", "UpdateExpression"]);
+      // Native abstract expression types do not carry the legacy compiler brands.
+      // Heritage elements share TypeReference with ordinary type references.
+      const nodeText = absentNativeKinds.has(name)
+        ? "never"
+        : abstractExpressions.has(name)
+        ? "compiler.Expression"
+        : name === "TypeReferenceNode" || name === "ExpressionWithTypeArguments"
+        ? "compiler.ExpressionWithTypeArguments | compiler.TypeReferenceNode"
+        : "compiler." + name;
+      if (typeText.split(" | ").sort().join(" | ") !== nodeText.split(" | ").sort().join(" | ")) {
         addProblem({
           filePath: sourceFile.getFilePath(),
           lineNumber: sourceFile.getTypeAliasOrThrow("CompilerNodeToWrappedType").getStartLineNumber(),

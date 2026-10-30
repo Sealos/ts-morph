@@ -182,12 +182,9 @@ export class ModuleDeclaration extends ModuleDeclarationBase<ts.ModuleDeclaratio
    * Gets the namesapce declaration kind.
    */
   getDeclarationKind() {
-    const nodeFlags = this.getFlags();
-    if ((nodeFlags & ts.NodeFlags.GlobalAugmentation) !== 0)
+    if (this.compilerNode.name.kind === SyntaxKind.Identifier && this.compilerNode.name.text === "global")
       return ModuleDeclarationKind.Global;
-    if ((nodeFlags & ts.NodeFlags.Namespace) !== 0)
-      return ModuleDeclarationKind.Namespace;
-    return ModuleDeclarationKind.Module;
+    return this.compilerNode.keyword === SyntaxKind.NamespaceKeyword ? ModuleDeclarationKind.Namespace : ModuleDeclarationKind.Module;
   }
 
   /**

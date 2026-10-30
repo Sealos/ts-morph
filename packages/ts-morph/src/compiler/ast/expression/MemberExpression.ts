@@ -1,5 +1,5 @@
 import { ts } from "@ts-morph/common";
 import { LeftHandSideExpression } from "./LeftHandSideExpression";
 
-export class MemberExpression<T extends ts.MemberExpression = ts.MemberExpression> extends LeftHandSideExpression<T> {
+export class MemberExpression<T extends ts.Expression = ts.Expression> extends LeftHandSideExpression<T> {
 }

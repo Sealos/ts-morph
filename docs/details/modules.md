@@ -10,7 +10,7 @@ Module declarations may look like any of the following:
 namespace MyNamespace {
 }
 
-module MyModule {
+namespace MyModule {
 }
 
 declare module "some-module" {

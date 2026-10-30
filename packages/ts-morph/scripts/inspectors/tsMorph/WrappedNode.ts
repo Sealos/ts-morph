@@ -12,6 +12,11 @@ export class WrappedNode {
     return this.node.getNameOrThrow();
   }
 
+  getNameForType() {
+    const required = this.node.getTypeParameters().filter(parameter => parameter.getDefault() == null);
+    return this.getName() + (required.length === 0 ? "" : `<${required.map(() => "any").join(", ")}>`);
+  }
+
   getFilePath() {
     return this.node.getSourceFile().getFilePath();
   }

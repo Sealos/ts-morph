@@ -27,11 +27,11 @@ export function LiteralLikeNode<T extends Constructor<LiteralLikeNodeExtensionTy
 
     isTerminated() {
       // I'm sorry, but this should not be a negative
-      return !(this.compilerNode.isUnterminated || false);
+      return (this.compilerNode.tokenFlags & ts.TokenFlags.Unterminated) === 0;
     }
 
     hasExtendedUnicodeEscape() {
-      return this.compilerNode.hasExtendedUnicodeEscape || false;
+      return (this.compilerNode.tokenFlags & ts.TokenFlags.ExtendedUnicodeEscape) !== 0;
     }
   };
 }

@@ -3,31 +3,16 @@
   "version": "28.0.0",
   "description": "TypeScript compiler wrapper for static analysis and code manipulation.",
   "main": "dist/ts-morph.js",
-  "types": "lib/ts-morph.d.ts",
+  "types": "dist-declarations/main.d.ts",
   "scripts": {
-    "dopublish": "deno task type-check-docs && deno task code-generate && deno task package && deno task publish-code-verification && echo \"Run: npm publish\"",
-    "build": "deno task build:declarations && deno task build:node",
-    "build:node": "rimraf dist && rollup -c ",
-    "build:deno": "deno task build:declarations && rimraf dist-deno && rollup -c --environment BUILD:deno && deno run -A scripts/buildDeno.ts",
-    "build:declarations": "deno run -A scripts/generation/main.ts create-declaration-file",
-    "test": "deno run -A npm:mocha",
-    "test:debug": "deno task test --inspect-brk",
-    "test:watch": "deno task test --watch-extensions ts --watch",
-    "test:ci": "deno task test",
-    "test:ts-versions": "deno run -A scripts/test/testTypeScriptVersions.ts",
-    "type-check": "deno run -A scripts/typeCheckLibrary.ts",
-    "code-generate": "deno run -A scripts/generation/main.ts",
-    "output-wrapped-nodes": "deno run -A scripts/generation/outputWrappedNodesInfo.ts",
-    "package": "deno task build",
-    "publish-code-verification": "deno task code-verification && deno task ensure-no-declaration-file-errors",
-    "code-verification": "deno run -A scripts/verification/main.ts ensure-structures-match-classes ensure-overload-structures-match ensure-array-inputs-readonly ensure-classes-implement-structure-methods ensure-mixin-not-applied-multiple-times validate-public-api-class-member-names validate-compiler-node-to-wrapped-type validate-code-fences",
-    "ensure-structures-match-classes": "deno run -A scripts/verification/main.ts ensure-structures-match-classes",
-    "ensure-overload-structures-match": "deno run -A scripts/verification/main.ts ensure-overload-structures-match",
-    "ensure-no-project-compile-errors": "deno run -A scripts/verification/ensureNoProjectCompileErrors.ts",
-    "ensure-no-declaration-file-errors": "deno run -A scripts/verification/ensureNoDeclarationFileErrors.ts",
-    "ensure-array-inputs-readonly": "deno run -A scripts/verification/main ensure-array-inputs-readonly.ts",
-    "ensure-or-throw-exists": "deno run -A scripts/verification/main ensure-or-throw-exists.ts",
-    "type-check-docs": "deno run -A scripts/typeCheckDocumentation.ts"
+    "build": "rimraf dist-cg dist dist-declarations && tsc -p tsconfig.build.json && rollup -c",
+    "build:declarations": "tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "type-check": "tsc -p tsconfig.json --rootDir ../.. --noEmit",
+    "test": "node --import tsx ../../node_modules/mocha/bin/mocha.js --require ../scripts/nativeCompilerCleanup.cjs",
+    "test:ci": "npm test",
+    "code-generate": "node --import tsx scripts/generation/main.ts",
+    "code-verification": "node --import tsx scripts/verification/main.ts ensure-structures-match-classes ensure-overload-structures-match ensure-array-inputs-readonly ensure-classes-implement-structure-methods ensure-mixin-not-applied-multiple-times validate-public-api-class-member-names validate-compiler-node-to-wrapped-type validate-code-fences",
+    "type-check-docs": "node --import tsx scripts/typeCheckDocumentation.ts"
   },
   "repository": "git+https://github.com/dsherret/ts-morph.git",
   "keywords": [
@@ -48,7 +33,6 @@
     "code-block-writer": "^13.0.3"
   },
   "devDependencies": {
-    "@rollup/plugin-typescript": "^12.1.2",
     "@types/chai": "^5.2.1",
     "@types/diff": "^7.0.2",
     "@types/mocha": "^10.0.10",
@@ -60,19 +44,15 @@
     "mocha": "11.1.0",
     "rimraf": "^6.0.1",
     "rollup": "=4.40.0",
-    "ts-node": "10.9.2",
-    "typescript": "~6.0.2"
+    "typescript": "7.1.0-beta"
   },
-  "browser": {
-    "fs": false,
-    "os": false,
-    "fs.realpath": false,
-    "mkdirp": false,
-    "dir-glob": false,
-    "graceful-fs": false,
-    "source-map-support": false,
-    "glob-parent": false,
-    "glob": false,
-    "tinyglobby": false
-  }
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "dist",
+    "dist-declarations",
+    "readme.md",
+    "LICENSE"
+  ]
 }

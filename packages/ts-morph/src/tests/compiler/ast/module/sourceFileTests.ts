@@ -698,7 +698,7 @@ describe("SourceFile", () => {
       expect(result).to.be.instanceof(EmitResult);
       const writeLog = fileSystem.getWriteLog();
       expect(writeLog[0].filePath).to.equal("/dist/file1.js");
-      expect(writeLog[0].fileText).to.equal("var num1 = 1;\n");
+      expect(writeLog[0].fileText).to.equal("const num1 = 1;\n");
       expect(writeLog.length).to.equal(1);
     }
 
@@ -713,20 +713,20 @@ describe("SourceFile", () => {
 
   describe(nameof<SourceFile>("getEmitOutput"), () => {
     it("should get the emit output for the source file", () => {
-      const project = new Project({ compilerOptions: { noLib: true, outDir: "dist", target: ScriptTarget.ES5 }, useInMemoryFileSystem: true });
+      const project = new Project({ compilerOptions: { noLib: true, outDir: "dist", target: ScriptTarget.ES2015 }, useInMemoryFileSystem: true });
       const sourceFile = project.createSourceFile("file1.ts", "const num1 = 1;");
       const result = sourceFile.getEmitOutput();
 
       expect(result.getEmitSkipped()).to.be.false;
       expect(result.getOutputFiles().length).to.equal(1);
       const outputFile = result.getOutputFiles()[0];
-      expect(outputFile.getText()).to.equal("\"use strict\";\nvar num1 = 1;\n");
+      expect(outputFile.getText()).to.equal("\"use strict\";\nconst num1 = 1;\n");
       expect(outputFile.getFilePath()).to.equal("/dist/file1.js");
     });
 
     it("should only emit the declaration file when specified", () => {
       const project = new Project({
-        compilerOptions: { noLib: true, declaration: true, outDir: "dist", target: ScriptTarget.ES5 },
+        compilerOptions: { noLib: true, declaration: true, outDir: "dist", target: ScriptTarget.ES2015 },
         useInMemoryFileSystem: true,
       });
       const sourceFile = project.createSourceFile("file1.ts", "const num1 = 1;");
@@ -834,7 +834,7 @@ describe("SourceFile", () => {
       doTest(
         "class MyClass {\n    myMethod() {\n    }\n}",
         "class MyClass {\r\n\tmyMethod() {\r\n\t}\r\n}\r\n",
-        { indentationText: IndentationText.Tab, newLineKind: NewLineKind.CarriageReturnLineFeed },
+        { indentationText: IndentationText.Tab, newLineKind: NewLineKind.CRLF },
       );
     });
 
@@ -842,7 +842,7 @@ describe("SourceFile", () => {
       doTest(
         "class MyClass {\r\n    myMethod() {\r\n    }\r\n}",
         "class MyClass {\n\tmyMethod() {\n\t}\n}\n",
-        { indentationText: IndentationText.Tab, newLineKind: NewLineKind.LineFeed },
+        { indentationText: IndentationText.Tab, newLineKind: NewLineKind.LF },
       );
     });
 
@@ -1150,7 +1150,7 @@ function myFunction(param: MyClass) {
     });
 
     it("should use an implicit index when the module resolution strategy is node10", () => {
-      doSourceFileTest("/dir/file.ts", "/dir2/index.d.ts", "../dir2", { moduleResolution: ModuleResolutionKind.NodeJs });
+      doSourceFileTest("/dir/file.ts", "/dir2/index.d.ts", "../dir2", { moduleResolution: ModuleResolutionKind.Node10 });
     });
 
     it("should use an implicit index when specifying the index file in the same directory", () => {
@@ -1432,6 +1432,11 @@ function myFunction(param: MyClass) {
       );
     });
 
+    it("adds available imports when an earlier unknown identifier has no import fix", () => {
+      const text = "const unknown = new DoesNotExist(); const value: Model = {};";
+      doTest(text, [{ path: "/Model.ts", text: "export interface Model {}" }], "import { Model } from \"./Model\";\n\n" + text);
+    });
+
     it("should add missing imports when some exist", () => {
       const startText = `import MyClass from "./MyClass";\n\nconst t = new MyClass();\nconst u: MyInterface = {};`;
       const expectedText =
@@ -1697,62 +1702,11 @@ interface I {
   });
 
   describe(nameof<SourceFile>("fixUnusedIdentifiers"), () => {
-    it("should remove unused import declarations, import names, and default imports", () => {
-      const project = new Project({ useInMemoryFileSystem: true });
-      project.createSourceFile(
-        "test.d.ts",
-        `
-declare module "foo";
-declare module "a";
-declare module "b";
-declare module "bar";
-`,
-      );
-      const sourceFile = project.createSourceFile(
-        "/test.ts",
-        `
-/// <reference path="./test.d.ts" />
-import {foo} from 'foo'
-import * as a from 'a'
-import b from 'b'
-import {used, unused} from 'bar'
-export const c = used + 1
-export function f(...args: any[]) {
-    var a
-    const c = 5;
-    const {x, y, z} = {x: 1, y: 1, z: 1}
-    return y + c
-}
-export class C<T> {
-    private constructor(a: number, b: Date) { this.a = a; this.b = b }
-    private m() { }
-    private b: Date
-    private a = 1
-    protected n({a, b, c}: {a: number, b: string, c: boolean}) { return this.b.getTime() + a }
-}
-export type T<S, V> = V extends string ? never : any
-            `,
-      );
-      expect(project.getPreEmitDiagnostics().map(d => d.getMessageText())).to.deep.equal([]);
-      sourceFile.fixUnusedIdentifiers();
-      sourceFile.fixUnusedIdentifiers();
-      expect(sourceFile.getFullText().trim()).to.equals(`
-/// <reference path="./test.d.ts" />
-import {used} from 'bar'
-export const c = used + 1
-export function f() {
-    const c = 5;
-    const {y} = {x: 1, y: 1, z: 1}
-    return y + c
-}
-export class C {
-    private constructor(a: number, b: Date) { this.a = a; this.b = b }
-    private b: Date
-    private a = 1
-    protected n({a}: {a: number, b: string, c: boolean}) { return this.b.getTime() + a }
-}
-export type T<V> = V extends string ? never : any
-                        `.trim());
+    it("rejects unavailable unused-identifier fixes without changing the file", () => {
+      const { sourceFile } = getInfoFromText("export function f(unused: number) { const value = 1; }");
+      const text = sourceFile.getFullText();
+      expect(() => sourceFile.fixUnusedIdentifiers()).to.throw("removal of unused identifiers");
+      expect(sourceFile.getFullText()).to.equal(text);
     });
   });
 });

@@ -31,11 +31,11 @@ export interface QuestionTokenableNode {
 export function QuestionTokenableNode<T extends Constructor<QuestionTokenableNodeExtensionType>>(Base: T): Constructor<QuestionTokenableNode> & T {
   return class extends Base implements QuestionTokenableNode {
     hasQuestionToken() {
-      return this.compilerNode.questionToken != null;
+      return this.getQuestionTokenNode() != null;
     }
 
     getQuestionTokenNode(): Node<ts.QuestionToken> | undefined {
-      return this._getNodeFromCompilerNodeIfExists(this.compilerNode.questionToken);
+      return this.getFirstChildByKind(SyntaxKind.QuestionToken) as Node<ts.QuestionToken> | undefined;
     }
 
     getQuestionTokenNodeOrThrow(message?: string | (() => string)): Node<ts.QuestionToken> {
